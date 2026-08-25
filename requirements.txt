@@ -25,7 +25,7 @@ langchain-openai      # LangChain ↔ OpenAI integration
 
 # ── Alerts & Notifications ───────────────────
 plyer                # Desktop push notifications (cross-platform)
-smtplib2             # Email alerts (optional upgrade over stdlib)
+# smtplib is built into Python stdlib — no install needed for email alerts
 twilio               # SMS / WhatsApp alerts (optional)
 
 # ── Simulation & Data Generation ─────────────
