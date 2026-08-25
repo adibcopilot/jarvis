@@ -1,0 +1,46 @@
+# ─────────────────────────────────────────────
+#  JARVIS — Requirements
+#  Install with: pip install -r requirements.txt
+# ─────────────────────────────────────────────
+
+# ── Object Detection (YOLO) ──────────────────
+ultralytics          # YOLOv8/v11 — object & person detection
+
+# ── Face Recognition ─────────────────────────
+deepface             # Face detection, recognition & attribute analysis
+tf-keras             # Required backend for DeepFace
+
+# ── Dashboard / UI ───────────────────────────
+streamlit            # Interactive web dashboard
+plotly               # Charts & visualisations inside Streamlit
+
+# ── Computer Vision Utilities ─────────────────
+opencv-python        # Video/image processing (cv2)
+Pillow               # Image loading & manipulation
+
+# ── AI / LLM Agent ───────────────────────────
+openai               # OpenAI API (GPT-4o) for the agent layer
+langchain            # Agent orchestration & tool use
+langchain-openai      # LangChain ↔ OpenAI integration
+
+# ── Alerts & Notifications ───────────────────
+plyer                # Desktop push notifications (cross-platform)
+smtplib2             # Email alerts (optional upgrade over stdlib)
+twilio               # SMS / WhatsApp alerts (optional)
+
+# ── Simulation & Data Generation ─────────────
+faker                # Fake data generation for testing / simulation
+numpy                # Numerical computing
+pandas               # Tabular data / report generation
+
+# ── Reports & Exports ────────────────────────
+fpdf2                # PDF report generation
+openpyxl             # Excel report generation
+jinja2               # HTML report templating
+
+# ── Utilities ────────────────────────────────
+python-dotenv        # Load secrets from .env file
+loguru               # Beautiful logging
+requests             # HTTP requests
+schedule             # Job scheduling (cron-like)
+tqdm                 # Progress bars

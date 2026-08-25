@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Environment variables / secrets
+.env
+*.env
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# YOLO / model weights
+*.pt
+*.onnx
+*.engine
+weights/
+
+# DeepFace cache
+.deepface/
+
+# Reports & exports (generated at runtime)
+reports/*.pdf
+reports/*.xlsx
+reports/*.html
+
+# Streamlit
+.streamlit/
+
+# Jupyter
+*.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+logs/
+*.log
