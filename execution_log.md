@@ -87,6 +87,21 @@ This log tracks all steps executed during the setup and testing of the JARVIS pr
   - `sample.jpg`: Detected `Person` (82.2%), `boots` (40.6%), and flagged 3 `none` violations (conf up to 70.7%).
 - **Annotated Visual Outputs:** Generated and saved corresponding `*_ppe_detected.*` images with plotted bounding boxes and labels in `detection/test_inputs/`.
 
+---
+
+## 🏷️ Update 8: Fire & Smoke Model Integration & Dual Detection Suite Testing
+- **Model Verification:** Verified custom `detection/models/best_fire.pt` (6 classes: `fire`, `person`, `smoke`, `with helmet`, `with ppe`, `without helmet`).
+- **Test Input Separation:** Structured test datasets into dedicated folders:
+  - `detection/test_inputs/ppe/` (14 PPE test images)
+  - `detection/test_inputs/fire_smoke/` (7 Fire/Smoke test images)
+- **Module & Test Runner Creation:**
+  - Created `detection/fire_detector.py` providing `FireSmokeDetector` class for fire/smoke hazard analysis.
+  - Created `detection/run_tests.py` to automate end-to-end evaluation of both PPE and Fire/Smoke detectors.
+- **Evaluation Results:**
+  - **PPE System (14 images):** 13/14 positive detections, 4 violations flagged across `bo.jpg` and `gloves.jpg` (`none` class indicating missing safety vest).
+  - **Fire/Smoke System (7 images + control):** 6 fire detections (conf up to 88.8%), 2 smoke detections (conf 38.6%), and 0 false alarms on non-fire control images.
+
+
 
 
 
