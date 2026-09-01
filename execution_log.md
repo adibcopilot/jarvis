@@ -72,5 +72,21 @@ This log tracks all steps executed during the setup and testing of the JARVIS pr
   - Refactored detection logic to use a clean set membership check `if label in self.VIOLATION_CLASSES:` instead of redundant string prefix checks.
 - **Verification:** Ran test suite against `sample.jpg` and `sample.mp4`, successfully identifying 3 PPE violations on the test image and 31 violations across video frames.
 
+---
+
+## 🏷️ Update 7: Multi-Input Batch Testing & Verification
+- **Batch Evaluation Script:** Created `detection/test_all_inputs.py` to automatically detect and evaluate all input images/videos in `detection/test_inputs/`.
+- **Multi-Image Testing:** Ran batch inference across 8 test images:
+  - `images (1).jpg`: Detected `Person` (conf: 27.8%).
+  - `images (2).jpg`: Borderline threshold analysis (`Person` detected at 21.9% conf).
+  - `images (3).jpg`: Detected `Person` (48.7%), `vest` (41.3%).
+  - `images (4).jpg`: Detected `helmet` (67.5%), `helmet` (47.8%), `vest` (39.3%).
+  - `images (5).jpg`: Detected `Person` (78.8%), `vest` (54.3%).
+  - `images.jpg`: Clean background / no PPE entities detected.
+  - `pngtree-...png`: Detected `Person` (76.7%), `vest` (58.7%).
+  - `sample.jpg`: Detected `Person` (82.2%), `boots` (40.6%), and flagged 3 `none` violations (conf up to 70.7%).
+- **Annotated Visual Outputs:** Generated and saved corresponding `*_ppe_detected.*` images with plotted bounding boxes and labels in `detection/test_inputs/`.
+
+
 
 
