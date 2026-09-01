@@ -101,6 +101,30 @@ This log tracks all steps executed during the setup and testing of the JARVIS pr
   - **PPE System (14 images):** 13/14 positive detections, 4 violations flagged across `bo.jpg` and `gloves.jpg` (`none` class indicating missing safety vest).
   - **Fire/Smoke System (7 images + control):** 6 fire detections (conf up to 88.8%), 2 smoke detections (conf 38.6%), and 0 false alarms on non-fire control images.
 
+---
+
+## 🏷️ Update 9: Core JARVIS Slice — Event Logging, Reasoning Agent, Pipeline & Dashboard
+- **SQLite Event Database (`database/db.py`):**
+  - Created `events` table matching TDS Section 3 schema with hash-chained records (tamper-evident logging).
+  - Functions: `insert_event()`, `update_approval()`, `get_all_events()`, `get_pending_events()`, `get_event_stats()`.
+  - Database auto-initializes on import at `database/jarvis.db`.
+- **Reasoning Agent (`agent/reasoner.py`):**
+  - Rule-based `classify_event()` function that takes event type + detections and returns `{severity, category, proposed_action, reasoning}`.
+  - Fire events auto-classified as `critical` (fire+smoke) or `high` (fire only or smoke only).
+  - PPE events classified by violation count: 0 = `low`, 1-2 = `medium`, 3+ = `high`.
+  - Generates human-readable action proposals and reasoning strings.
+- **Detection Pipeline (`detection/pipeline.py`):**
+  - `run_ppe_pipeline(image_path)` and `run_fire_pipeline(image_path)` unify: detect -> classify -> log to database.
+  - Lazy-loads models (singleton pattern) so they load once per session.
+- **Streamlit Dashboard (`dashboard/app.py`):**
+  - 4 pages: Dashboard (live stats), Upload & Detect (file upload with PPE/Fire mode), Approval Queue (Approve/Deny buttons), Event Log (filterable, hash-chain visible).
+  - Running at `http://localhost:8501`.
+- **End-to-End Verification:**
+  - PPE pipeline test: `bo.jpg` -> 2 violations detected -> severity `medium` -> action "Issue warning, missing PPE: safety vest" -> Event #1 logged.
+  - Fire pipeline test: `fire.jpg` -> fire detected (88.8%) -> severity `critical` -> action "Alert fire safety officer" -> Event #2 logged.
+  - Both events visible in database with `pending` approval status and valid hash chains.
+
+
 
 
 
