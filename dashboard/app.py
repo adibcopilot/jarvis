@@ -441,151 +441,140 @@ if page == "📊  Dashboard":
             unsafe_allow_html=True,
         )
     else:
-        col_table, col_detail = st.columns([1.5, 1])
+        st.markdown(
+            '<div class="section-title"><span>Live Incident Feed</span><span style="font-weight:400;color:#a0a0a0;">Real-time Telemetry</span></div>',
+            unsafe_allow_html=True,
+        )
 
-        with col_table:
-            st.markdown(
-                '<div class="section-title"><span>Live Incident Feed</span><span style="font-weight:400;color:#a0a0a0;">Real-time Telemetry</span></div>',
-                unsafe_allow_html=True,
+        table_rows_html = ""
+        for e in events[:15]:
+            sev_html = format_severity(e["severity"])
+            st_html = format_status(e["approval_status"])
+            action_text = e["proposed_action"] or "—"
+            truncated = (
+                (action_text[:50] + "...")
+                if len(action_text) > 50
+                else action_text
             )
+            source_display = e["source_file"] or "—"
+            if len(source_display) > 18:
+                source_display = source_display[:15] + "..."
 
-            table_rows_html = ""
-            for e in events[:15]:
-                sev_html = format_severity(e["severity"])
-                st_html = format_status(e["approval_status"])
-                action_text = e["proposed_action"] or "—"
-                truncated = (
-                    (action_text[:50] + "...")
-                    if len(action_text) > 50
-                    else action_text
-                )
-                source_display = e["source_file"] or "—"
-                if len(source_display) > 18:
-                    source_display = source_display[:15] + "..."
+            table_rows_html += f"""<tr>
+<td style="font-family:monospace;font-size:12px;">#{e['event_id']:03d}</td>
+<td style="color:#a0a0a0;font-size:12px;">{e['timestamp']}</td>
+<td><strong>{e['event_type'].upper()}</strong></td>
+<td style="color:#a0a0a0;font-size:12px;">{source_display}</td>
+<td>{sev_html}</td>
+<td>{st_html}</td>
+<td><div class="truncated-text" title="{action_text}">{truncated}</div></td>
+</tr>"""
 
-                table_rows_html += f"""
-                <tr>
-                    <td style="font-family:monospace;font-size:12px;">#{e['event_id']:03d}</td>
-                    <td style="color:#a0a0a0;font-size:12px;">{e['timestamp']}</td>
-                    <td><strong>{e['event_type'].upper()}</strong></td>
-                    <td style="color:#a0a0a0;font-size:12px;">{source_display}</td>
-                    <td>{sev_html}</td>
-                    <td>{st_html}</td>
-                    <td><div class="truncated-text" title="{action_text}">{truncated}</div></td>
-                </tr>
-                """
+        table_html = f"""<table class="custom-table">
+<thead>
+<tr>
+<th style="width:50px;">ID</th>
+<th style="width:130px;">Timestamp</th>
+<th style="width:90px;">Type</th>
+<th style="width:120px;">Source</th>
+<th style="width:110px;">Severity</th>
+<th style="width:110px;">Status</th>
+<th>Proposed Action</th>
+</tr>
+</thead>
+<tbody>
+{table_rows_html}
+</tbody>
+</table>"""
+        
+        st.markdown(table_html, unsafe_allow_html=True)
+        st.markdown("<br><br>", unsafe_allow_html=True)
 
-            st.markdown(
-                f"""
-            <table class="custom-table">
-                <thead>
-                    <tr>
-                        <th style="width:50px;">ID</th>
-                        <th style="width:130px;">Timestamp</th>
-                        <th style="width:90px;">Type</th>
-                        <th style="width:120px;">Source</th>
-                        <th style="width:110px;">Severity</th>
-                        <th style="width:110px;">Status</th>
-                        <th>Proposed Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {table_rows_html}
-                </tbody>
-            </table>
-            """,
-                unsafe_allow_html=True,
-            )
+        st.markdown(
+            '<div class="section-title"><span>Event Inspection Panel</span><span style="font-weight:400;color:#a0a0a0;">Deep Audit</span></div>',
+            unsafe_allow_html=True,
+        )
 
-        with col_detail:
-            st.markdown(
-                '<div class="section-title"><span>Event Inspection Panel</span><span style="font-weight:400;color:#a0a0a0;">Deep Audit</span></div>',
-                unsafe_allow_html=True,
-            )
+        event_options = {
+            f"Event #{e['event_id']} — {e['event_type'].upper()} ({e['timestamp']})": e[
+                "event_id"
+            ]
+            for e in events
+        }
+        selected_label = st.selectbox(
+            "Select event to inspect",
+            list(event_options.keys()),
+            label_visibility="collapsed",
+        )
+        selected_id = event_options[selected_label]
+        target_event = next(
+            (e for e in events if e["event_id"] == selected_id), None
+        )
 
-            event_options = {
-                f"Event #{e['event_id']} — {e['event_type'].upper()} ({e['timestamp']})": e[
-                    "event_id"
-                ]
-                for e in events
-            }
-            selected_label = st.selectbox(
-                "Select event to inspect",
-                list(event_options.keys()),
-                label_visibility="collapsed",
-            )
-            selected_id = event_options[selected_label]
-            target_event = next(
-                (e for e in events if e["event_id"] == selected_id), None
-            )
+        if target_event:
+            sev_html = format_severity(target_event["severity"])
+            status_str = target_event["approval_status"].upper()
 
-            if target_event:
-                sev_html = format_severity(target_event["severity"])
-                status_str = target_event["approval_status"].upper()
+            detail_html = f"""<div class="detail-panel">
+<h4>Event Details — #{target_event['event_id']:03d}</h4>
 
-                st.markdown(
-                    f"""
-                <div class="detail-panel">
-                    <h4>Event Details — #{target_event['event_id']:03d}</h4>
-                    
-                    <div class="detail-field">
-                        <div class="detail-label">Incident Type &amp; Source</div>
-                        <div class="detail-value">{target_event['event_type'].upper()} &nbsp;|&nbsp; {target_event['source_file'] or 'System Stream'}</div>
-                    </div>
-                    
-                    <div class="detail-field">
-                        <div class="detail-label">Severity &amp; Category</div>
-                        <div class="detail-value">{sev_html} &nbsp;|&nbsp; Category: {target_event['category'].upper()}</div>
-                    </div>
-                    
-                    <div class="detail-field">
-                        <div class="detail-label">Approval State</div>
-                        <div class="detail-value">{status_str} {('by ' + target_event['approved_by']) if target_event.get('approved_by') else ''}</div>
-                    </div>
-                    
-                    <div class="detail-field">
-                        <div class="detail-label">Proposed Action</div>
-                        <div class="detail-value" style="font-size:12px; line-height:1.5; color:#e0e0e0;">{target_event['proposed_action']}</div>
-                    </div>
-                    
-                    <div class="detail-field" style="margin-top:12px;">
-                        <div class="detail-label">Cryptographic Hash Verification (SHA-256)</div>
-                        <div style="margin-top:4px;">
-                            <span style="font-size:10px;color:#888;">RECORD_HASH:</span><br>
-                            <div class="hash-code">{(target_event.get('record_hash') or 'GENESIS')}</div>
-                            <span style="font-size:10px;color:#888;margin-top:4px;display:inline-block;">PREV_HASH:</span><br>
-                            <div class="hash-code">{(target_event.get('prev_hash') or 'GENESIS')}</div>
-                        </div>
-                    </div>
-                </div>
-                """,
-                    unsafe_allow_html=True,
-                )
+<div class="detail-field">
+<div class="detail-label">Incident Type &amp; Source</div>
+<div class="detail-value">{target_event['event_type'].upper()} &nbsp;|&nbsp; {target_event['source_file'] or 'System Stream'}</div>
+</div>
 
-                if target_event["approval_status"] == "pending":
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    col_app, col_den = st.columns(2)
-                    with col_app:
-                        if st.button(
-                            "Approve Action",
-                            key=f"dash_app_{target_event['event_id']}",
-                            type="primary",
-                            use_container_width=True,
-                        ):
-                            update_approval(
-                                target_event["event_id"], "approved", "Manager"
-                            )
-                            st.rerun()
-                    with col_den:
-                        if st.button(
-                            "Deny Action",
-                            key=f"dash_den_{target_event['event_id']}",
-                            use_container_width=True,
-                        ):
-                            update_approval(
-                                target_event["event_id"], "denied", "Manager"
-                            )
-                            st.rerun()
+<div class="detail-field">
+<div class="detail-label">Severity &amp; Category</div>
+<div class="detail-value">{sev_html} &nbsp;|&nbsp; Category: {target_event['category'].upper()}</div>
+</div>
+
+<div class="detail-field">
+<div class="detail-label">Approval State</div>
+<div class="detail-value">{status_str} {('by ' + target_event['approved_by']) if target_event.get('approved_by') else ''}</div>
+</div>
+
+<div class="detail-field">
+<div class="detail-label">Proposed Action</div>
+<div class="detail-value" style="font-size:12px; line-height:1.5; color:#e0e0e0;">{target_event['proposed_action']}</div>
+</div>
+
+<div class="detail-field" style="margin-top:12px;">
+<div class="detail-label">Cryptographic Hash Verification (SHA-256)</div>
+<div style="margin-top:4px;">
+<span style="font-size:10px;color:#888;">RECORD_HASH:</span><br>
+<div class="hash-code">{(target_event.get('record_hash') or 'GENESIS')}</div>
+<span style="font-size:10px;color:#888;margin-top:4px;display:inline-block;">PREV_HASH:</span><br>
+<div class="hash-code">{(target_event.get('prev_hash') or 'GENESIS')}</div>
+</div>
+</div>
+</div>"""
+
+            st.markdown(detail_html, unsafe_allow_html=True)
+
+            if target_event["approval_status"] == "pending":
+                st.markdown("<br>", unsafe_allow_html=True)
+                col_app, col_den = st.columns(2)
+                with col_app:
+                    if st.button(
+                        "Approve Action",
+                        key=f"dash_app_{target_event['event_id']}",
+                        type="primary",
+                        use_container_width=True,
+                    ):
+                        update_approval(
+                            target_event["event_id"], "approved", "Manager"
+                        )
+                        st.rerun()
+                with col_den:
+                    if st.button(
+                        "Deny Action",
+                        key=f"dash_den_{target_event['event_id']}",
+                        use_container_width=True,
+                    ):
+                        update_approval(
+                            target_event["event_id"], "denied", "Manager"
+                        )
+                        st.rerun()
 
 
 # ══════════════════════════════════════════════════════════════════════════════

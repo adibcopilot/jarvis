@@ -50,3 +50,5 @@ desktop.ini
 # Logs
 logs/
 *.log
+execution_log.md
+presentation_notes.md
