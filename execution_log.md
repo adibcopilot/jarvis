@@ -155,6 +155,27 @@ This log tracks all steps executed during the setup and testing of the JARVIS pr
   - Replaced colored badges with tonal text weights and monochrome status dots.
   - Wired live SQLite queries, multi-domain pipeline execution, and approval actions directly into the new UI.
 
+---
+
+## 🏷️ Update 12: Multi-Modal Video Inference, CSV Audit Export, Digital Twin & Defense Notes
+- **Repository Weights & Clean Cloning:**
+  - Updated `.gitignore` to allow tracking of custom trained model weights (`detection/models/best_ppe.pt`, `detection/models/best_fire.pt`), base YOLO models, and structured test inputs.
+  - Added `.streamlit/config.toml` to enforce dark theme globally on any fresh clone.
+  - Successfully committed and pushed all weights and test media to GitHub (commit `60c061f`).
+- **Video Inspection Pipeline:**
+  - Enhanced `FireSmokeDetector` with `detect_video()` for frame-by-frame hazard evaluation and video writer support.
+  - Extended dashboard uploader to accept video files (`.mp4`, `.avi`, `.mov`) with aggregated incident summaries across video frames.
+- **Reporting & Compliance Export (FR-12):**
+  - Created `reports/export.py` with `export_events_to_csv()` and `get_events_dataframe()`.
+  - Added one-click **"📥 Export CSV"** download button in the dashboard Event Log and live view.
+- **Digital Twin & Violation Analytics (FR-16, FR-17):**
+  - Added **"🌐 Digital Twin"** status board page mapping Zone 1 (Conveyor Line 1), Zone 2 (PPE Station), and Zone 3 (Fire Monitor).
+  - Added **"📈 Violation Trends"** analytics page with live distribution charts by domain and severity.
+- **Presentation & Evaluation Package:**
+  - Created [`presentation_notes.md`](file:///d:/final%20year/jarvis/presentation_notes.md) containing elevator pitch, real vs. simulated boundary breakdown, panel Q&A answers, and a 2-minute live demo walkthrough.
+- **Overall Completion:** Progress elevated to **~65–70%** (12 of 18 Functional Requirements completed).
+
+
 
 
 

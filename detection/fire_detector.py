@@ -39,28 +39,26 @@ class FireSmokeDetector:
         self.classes = self.model.names
         print(f"[OK]   Fire/Smoke model loaded. Classes ({len(self.classes)}): {self.classes}")
 
-    def detect(self, image_or_frame: Union[str, Path, np.ndarray]) -> Dict[str, Any]:
+    def detect(self, source: Union[str, Path, np.ndarray]) -> Dict[str, Any]:
         """
-        Run Fire & Smoke detection on an image path or numpy frame.
-        
-        Returns:
-            dict containing:
-                - detections: list of all detected bounding boxes
-                - hazards: list of fire / smoke detections specifically
-                - has_fire: bool
-                - has_smoke: bool
-                - summary: frequency counts of each class
-                - annotated_image: numpy BGR image with plotted bounding boxes
+        Run Fire/Smoke detection on an image path or numpy array (BGR frame).
         """
-        results = self.model(image_or_frame, conf=self.conf_threshold, verbose=False)
+        if isinstance(source, (str, Path)):
+            src_path = Path(source)
+            if not src_path.exists():
+                raise FileNotFoundError(f"Image not found at: {src_path}")
+            img_input = str(src_path)
+        else:
+            img_input = source
+
+        results = self.model(img_input, conf=self.conf_threshold, verbose=False)
         result = results[0]
 
         detections = []
         hazards = []
-        summary = {}
-
         has_fire = False
         has_smoke = False
+        summary = {}
 
         for box in result.boxes:
             cls_id = int(box.cls[0])
@@ -96,11 +94,75 @@ class FireSmokeDetector:
             "annotated_image": annotated_image
         }
 
+    def detect_video(self, video_path: Union[str, Path], output_path: Union[str, Path] = None) -> Dict[str, Any]:
+        """
+        Process a video file frame by frame with Fire/Smoke detection.
+        """
+        v_path = Path(video_path)
+        if not v_path.exists():
+            raise FileNotFoundError(f"Video file not found: {v_path}")
+
+        cap = cv2.VideoCapture(str(v_path))
+        if not cap.isOpened():
+            raise IOError(f"Could not open video file: {v_path}")
+
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+        writer = None
+        if output_path:
+            out_p = Path(output_path)
+            fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+            writer = cv2.VideoWriter(str(out_p), fourcc, fps, (width, height))
+
+        frame_count = 0
+        total_detections = 0
+        total_fire_frames = 0
+        total_smoke_frames = 0
+        aggregated_summary = {}
+
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            frame_count += 1
+            res = self.detect(frame)
+            total_detections += len(res["detections"])
+            if res["has_fire"]:
+                total_fire_frames += 1
+            if res["has_smoke"]:
+                total_smoke_frames += 1
+
+            for k, v in res["summary"].items():
+                aggregated_summary[k] = aggregated_summary.get(k, 0) + v
+
+            if writer:
+                writer.write(res["annotated_image"])
+
+        cap.release()
+        if writer:
+            writer.release()
+
+        return {
+            "frames_processed": frame_count,
+            "total_detections": total_detections,
+            "fire_frames": total_fire_frames,
+            "smoke_frames": total_smoke_frames,
+            "has_fire": total_fire_frames > 0,
+            "has_smoke": total_smoke_frames > 0,
+            "aggregated_summary": aggregated_summary,
+            "output_path": str(output_path) if output_path else None
+        }
+
 
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="Test Fire/Smoke detection")
     parser.add_argument("--image", type=str, default=None, help="Path to input image")
+    parser.add_argument("--video", type=str, default=None, help="Path to input video")
     parser.add_argument("--conf", type=float, default=0.25, help="Confidence threshold")
     args = parser.parse_args()
 
@@ -113,6 +175,13 @@ def main():
         print(f"  Has Fire: {res['has_fire']} | Has Smoke: {res['has_smoke']}")
         for d in res['detections']:
             print(f"  - {d['label']} (conf: {d['confidence']}) at {d['bbox']}")
+
+    if args.video:
+        res = detector.detect_video(args.video)
+        print(f"\nVideo Results for {args.video}:")
+        print(f"  Frames: {res['frames_processed']}")
+        print(f"  Fire Frames: {res['fire_frames']} | Smoke Frames: {res['smoke_frames']}")
+        print(f"  Summary: {res['aggregated_summary']}")
 
 
 if __name__ == "__main__":

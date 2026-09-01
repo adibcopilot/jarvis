@@ -19,6 +19,7 @@ if str(ROOT_DIR) not in sys.path:
 import streamlit as st
 import cv2
 import numpy as np
+import pandas as pd
 
 from database.db import (
     get_all_events,
@@ -30,12 +31,15 @@ from detection.pipeline import (
     run_ppe_pipeline,
     run_fire_pipeline,
     run_conveyor_fault_pipeline,
+    _get_ppe_detector,
+    _get_fire_detector,
 )
 from simulation.conveyor import (
     get_status as get_conveyor_status,
     run as run_conveyor,
     manual_stop as stop_conveyor,
 )
+from reports.export import export_events_to_csv, get_events_dataframe
 
 
 # ── Page Configuration ────────────────────────────────────────────────────────
@@ -284,8 +288,8 @@ st.markdown(
         margin-right: 6px;
     }
 
-    /* Buttons Override (Clean monochrome outline & solid) */
-    div.stButton > button {
+    /* Buttons Override */
+    div.stButton > button, div.stDownloadButton > button {
         background-color: #0a0a0a !important;
         color: #ffffff !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
@@ -296,7 +300,7 @@ st.markdown(
         letter-spacing: 0.02em !important;
         transition: none !important;
     }
-    div.stButton > button:hover {
+    div.stButton > button:hover, div.stDownloadButton > button:hover {
         background-color: #1a1a1a !important;
         border-color: #ffffff !important;
         color: #ffffff !important;
@@ -358,6 +362,8 @@ page = st.sidebar.radio(
         "📊  Dashboard",
         "📤  Upload & Detect",
         "⚙️  Conveyor Control",
+        "🌐  Digital Twin",
+        "📈  Violation Trends",
         "✅  Approval Queue",
         "📜  Event Log",
     ],
@@ -579,7 +585,7 @@ if page == "📊  Dashboard":
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  PAGE 2: UPLOAD & DETECT
+#  PAGE 2: UPLOAD & DETECT (IMAGE + VIDEO SUPPORT)
 # ══════════════════════════════════════════════════════════════════════════════
 elif page == "📤  Upload & Detect":
     st.markdown(
@@ -599,100 +605,141 @@ elif page == "📤  Upload & Detect":
             label_visibility="collapsed",
         )
         st.caption(
-            "All detections execute genuine YOLO models (`best_ppe.pt` / `best_fire.pt`) on uploaded file input without webcam dependencies."
+            "Supports image files (.jpg, .png) and video files (.mp4, .avi) evaluated frame-by-frame on genuine YOLO models."
         )
 
     with col_up:
         st.markdown(
-            '<div class="detail-label">Upload Inspection Asset</div>',
+            '<div class="detail-label">Upload Inspection Asset (Image or Video)</div>',
             unsafe_allow_html=True,
         )
         uploaded_file = st.file_uploader(
-            "Choose Image File",
-            type=["jpg", "jpeg", "png"],
+            "Choose Asset File",
+            type=["jpg", "jpeg", "png", "mp4", "avi", "mov"],
             label_visibility="collapsed",
         )
 
     if uploaded_file is not None:
-        suffix = Path(uploaded_file.name).suffix
+        suffix = Path(uploaded_file.name).suffix.lower()
+        is_video = suffix in [".mp4", ".avi", ".mov"]
+
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             tmp.write(uploaded_file.getbuffer())
             tmp_path = tmp.name
 
-        with st.spinner("Executing YOLO inference and Agentic reasoning..."):
-            if "PPE" in detection_mode:
-                result = run_ppe_pipeline(tmp_path)
-            else:
-                result = run_fire_pipeline(tmp_path)
+        if not is_video:
+            # ── Single Image Inference ──
+            with st.spinner("Executing YOLO inference and Agentic reasoning..."):
+                if "PPE" in detection_mode:
+                    result = run_ppe_pipeline(tmp_path)
+                else:
+                    result = run_fire_pipeline(tmp_path)
 
-        col_img, col_out = st.columns([1.2, 1])
+            col_img, col_out = st.columns([1.2, 1])
 
-        with col_img:
-            st.markdown(
-                '<div class="section-title">Annotated Inspection Output</div>',
-                unsafe_allow_html=True,
+            with col_img:
+                st.markdown(
+                    '<div class="section-title">Annotated Inspection Output</div>',
+                    unsafe_allow_html=True,
+                )
+                annotated_rgb = cv2.cvtColor(
+                    result["annotated_image"], cv2.COLOR_BGR2RGB
+                )
+                st.image(annotated_rgb, use_container_width=True)
+
+            with col_out:
+                cls = result["classification"]
+                sev = cls["severity"]
+
+                st.markdown(
+                    f"""
+                <div class="detail-panel">
+                    <h4>Agent Decision Output — #{result['event_id']:03d}</h4>
+                    
+                    <div class="detail-field">
+                        <div class="detail-label">Assessed Severity</div>
+                        <div class="detail-value">{format_severity(sev)}</div>
+                    </div>
+                    
+                    <div class="detail-field">
+                        <div class="detail-label">Classification Category</div>
+                        <div class="detail-value">{cls['category'].upper()}</div>
+                    </div>
+                    
+                    <div class="detail-field">
+                        <div class="detail-label">Proposed Action</div>
+                        <div class="detail-value" style="font-size:12px; line-height:1.5;">{cls['proposed_action']}</div>
+                    </div>
+                    
+                    <div class="detail-field">
+                        <div class="detail-label">Reasoning Chain</div>
+                        <div class="detail-value" style="font-size:12px; color:#a0a0a0; line-height:1.4;">{cls['reasoning']}</div>
+                    </div>
+                    
+                    <div class="detail-field" style="margin-top:12px;">
+                        <div class="detail-label">Detection Counts</div>
+                        <div class="detail-value" style="font-size:12px;">
+                """,
+                    unsafe_allow_html=True,
+                )
+
+                if result.get("summary"):
+                    for label, count in result["summary"].items():
+                        st.markdown(
+                            f"<span style='color:#ffffff;'>• {label}:</span> {count}",
+                            unsafe_allow_html=True,
+                        )
+                else:
+                    st.markdown(
+                        "<span style='color:#a0a0a0;'>No objects matched confidence threshold.</span>",
+                        unsafe_allow_html=True,
+                    )
+
+                st.markdown(
+                    "</div></div></div>",
+                    unsafe_allow_html=True,
+                )
+
+            st.success(
+                f"Event #{result['event_id']:03d} recorded in hash-chained audit log. Status: Awaiting Supervisor Approval."
             )
-            annotated_rgb = cv2.cvtColor(
-                result["annotated_image"], cv2.COLOR_BGR2RGB
-            )
-            st.image(annotated_rgb, use_container_width=True)
 
-        with col_out:
-            cls = result["classification"]
-            sev = cls["severity"]
+        else:
+            # ── Video Sequence Inference ──
+            with st.spinner("Processing video sequence frame-by-frame..."):
+                if "PPE" in detection_mode:
+                    detector = _get_ppe_detector()
+                    v_res = detector.detect_video(tmp_path)
+                else:
+                    detector = _get_fire_detector()
+                    v_res = detector.detect_video(tmp_path)
 
             st.markdown(
                 f"""
-            <div class="detail-panel">
-                <h4>Agent Decision Output — #{result['event_id']:03d}</h4>
-                
-                <div class="detail-field">
-                    <div class="detail-label">Assessed Severity</div>
-                    <div class="detail-value">{format_severity(sev)}</div>
+            <div class="stat-card-row" style="margin-top:1rem;">
+                <div class="stat-card">
+                    <div class="num">{v_res['frames_processed']}</div>
+                    <div class="label">Frames Processed</div>
                 </div>
-                
-                <div class="detail-field">
-                    <div class="detail-label">Classification Category</div>
-                    <div class="detail-value">{cls['category'].upper()}</div>
+                <div class="stat-card">
+                    <div class="num">{v_res['total_detections']}</div>
+                    <div class="label">Total Detections</div>
                 </div>
-                
-                <div class="detail-field">
-                    <div class="detail-label">Proposed Action</div>
-                    <div class="detail-value" style="font-size:12px; line-height:1.5;">{cls['proposed_action']}</div>
+                <div class="stat-card">
+                    <div class="num">{v_res.get('total_violations', v_res.get('fire_frames', 0))}</div>
+                    <div class="label">Incident Frames</div>
                 </div>
-                
-                <div class="detail-field">
-                    <div class="detail-label">Reasoning Chain</div>
-                    <div class="detail-value" style="font-size:12px; color:#a0a0a0; line-height:1.4;">{cls['reasoning']}</div>
-                </div>
-                
-                <div class="detail-field" style="margin-top:12px;">
-                    <div class="detail-label">Detection Counts</div>
-                    <div class="detail-value" style="font-size:12px;">
+            </div>
             """,
                 unsafe_allow_html=True,
             )
 
-            if result.get("summary"):
-                for label, count in result["summary"].items():
-                    st.markdown(
-                        f"<span style='color:#ffffff;'>• {label}:</span> {count}",
-                        unsafe_allow_html=True,
-                    )
-            else:
-                st.markdown(
-                    "<span style='color:#a0a0a0;'>No objects matched confidence threshold.</span>",
-                    unsafe_allow_html=True,
-                )
-
             st.markdown(
-                "</div></div></div>",
+                '<div class="section-title">Aggregated Detections Across Video Sequence</div>',
                 unsafe_allow_html=True,
             )
-
-        st.success(
-            f"Event #{result['event_id']:03d} recorded in hash-chained audit log. Status: Awaiting Supervisor Approval."
-        )
+            for k, v in v_res["aggregated_summary"].items():
+                st.markdown(f"• **{k}**: {v} detections across frames")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -804,7 +851,107 @@ elif page == "⚙️  Conveyor Control":
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  PAGE 4: APPROVAL QUEUE
+#  PAGE 4: DIGITAL TWIN STATUS BOARD (FR-16)
+# ══════════════════════════════════════════════════════════════════════════════
+elif page == "🌐  Digital Twin":
+    st.markdown(
+        '<div class="section-title"><span>Digital Twin Status Board</span><span style="font-weight:400;color:#a0a0a0;">Plant Floor Virtual Layout</span></div>',
+        unsafe_allow_html=True,
+    )
+    st.caption(
+        "At-a-glance status topology of all manufacturing zones and production units per SRS FR-16."
+    )
+
+    c_status = get_conveyor_status()
+    l1_status = c_status["status"].upper()
+
+    col_z1, col_z2, col_z3 = st.columns(3)
+
+    with col_z1:
+        st.markdown(
+            f"""
+        <div class="detail-panel" style="text-align:center; padding:28px 16px;">
+            <div style="font-size:11px; text-transform:uppercase; color:#a0a0a0; letter-spacing:0.08em;">ZONE 01 — ASSEMBLY</div>
+            <div style="font-size:24px; font-weight:700; color:#ffffff; margin:10px 0;">CONVEYOR LINE 1</div>
+            <div style="margin-bottom:12px;">{format_status(l1_status)}</div>
+            <div style="font-size:11px; color:#a0a0a0;">Telemetry: {c_status.get('last_change_reason','—')}</div>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+
+    with col_z2:
+        st.markdown(
+            """
+        <div class="detail-panel" style="text-align:center; padding:28px 16px;">
+            <div style="font-size:11px; text-transform:uppercase; color:#a0a0a0; letter-spacing:0.08em;">ZONE 02 — QUALITY CHECK</div>
+            <div style="font-size:24px; font-weight:700; color:#ffffff; margin:10px 0;">PPE INSPECTION STATION</div>
+            <div style="margin-bottom:12px;"><strong>[ ACTIVE ]</strong></div>
+            <div style="font-size:11px; color:#a0a0a0;">Camera 01: Optical Flow Normal</div>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+
+    with col_z3:
+        st.markdown(
+            """
+        <div class="detail-panel" style="text-align:center; padding:28px 16px;">
+            <div style="font-size:11px; text-transform:uppercase; color:#a0a0a0; letter-spacing:0.08em;">ZONE 03 — SAFETY PERIMETER</div>
+            <div style="font-size:24px; font-weight:700; color:#ffffff; margin:10px 0;">FIRE &amp; SMOKE HAZARD MONITOR</div>
+            <div style="margin-bottom:12px;"><strong>[ STANDBY ]</strong></div>
+            <div style="font-size:11px; color:#a0a0a0;">Thermal/Visual Sensors Online</div>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  PAGE 5: VIOLATION TREND ANALYTICS (FR-17)
+# ══════════════════════════════════════════════════════════════════════════════
+elif page == "📈  Violation Trends":
+    st.markdown(
+        '<div class="section-title"><span>Violation Trend Analytics</span><span style="font-weight:400;color:#a0a0a0;">Pattern Detection &amp; Risk Insights</span></div>',
+        unsafe_allow_html=True,
+    )
+    st.caption(
+        "Historical aggregation of safety violations, mechanical faults, and approval metrics per SRS FR-17."
+    )
+
+    df = get_events_dataframe()
+
+    if df.empty:
+        st.markdown(
+            """
+        <div class="stat-card" style="text-align: left; padding: 24px;">
+            <p style="color:#a0a0a0; margin:0; font-size:13px;">No event telemetry recorded yet to compute analytics.</p>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+    else:
+        col_t1, col_t2 = st.columns(2)
+
+        with col_t1:
+            st.markdown(
+                '<div class="detail-label" style="margin-bottom:8px;">Incidents by Category &amp; Domain</div>',
+                unsafe_allow_html=True,
+            )
+            type_counts = df["event_type"].value_counts()
+            st.bar_chart(type_counts, height=220)
+
+        with col_t2:
+            st.markdown(
+                '<div class="detail-label" style="margin-bottom:8px;">Incidents by Severity Level</div>',
+                unsafe_allow_html=True,
+            )
+            sev_counts = df["severity"].value_counts()
+            st.bar_chart(sev_counts, height=220)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  PAGE 6: APPROVAL QUEUE
 # ══════════════════════════════════════════════════════════════════════════════
 elif page == "✅  Approval Queue":
     st.markdown(
@@ -871,11 +1018,11 @@ elif page == "✅  Approval Queue":
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  PAGE 5: EVENT LOG (HASH-CHAINED AUDIT TRAIL)
+#  PAGE 7: EVENT LOG (HASH-CHAINED AUDIT TRAIL + CSV EXPORT)
 # ══════════════════════════════════════════════════════════════════════════════
 elif page == "📜  Event Log":
     st.markdown(
-        '<div class="section-title"><span>Tamper-Evident Audit Trail</span><span style="font-weight:400;color:#a0a0a0;">SHA-256 Hash Chain</span></div>',
+        '<div class="section-title"><span>Tamper-Evident Audit Trail</span><span style="font-weight:400;color:#a0a0a0;">SHA-256 Hash Chain &amp; Export</span></div>',
         unsafe_allow_html=True,
     )
 
@@ -891,7 +1038,7 @@ elif page == "📜  Event Log":
             unsafe_allow_html=True,
         )
     else:
-        col_f1, col_f2 = st.columns(2)
+        col_f1, col_f2, col_exp = st.columns([1.5, 1.5, 1.2])
         with col_f1:
             type_filter = st.selectbox(
                 "Filter by Event Type", ["All", "PPE", "Fire", "Conveyor"]
@@ -900,6 +1047,16 @@ elif page == "📜  Event Log":
             status_filter = st.selectbox(
                 "Filter by Approval Status",
                 ["All", "Pending", "Approved", "Denied"],
+            )
+        with col_exp:
+            st.markdown("<div style='height:28px;'></div>", unsafe_allow_html=True)
+            csv_data = export_events_to_csv(events)
+            st.download_button(
+                label="📥 Export CSV",
+                data=csv_data,
+                file_name=f"jarvis_audit_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                mime="text/csv",
+                use_container_width=True,
             )
 
         filtered = events
