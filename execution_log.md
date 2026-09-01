@@ -51,3 +51,14 @@ This log tracks all steps executed during the setup and testing of the JARVIS pr
   - **YOLOv26 Image Test:** `detection/yolo_image_test.py` loaded `yolo26n.pt` and executed object detection on `sample.jpg`, successfully drawing bounding boxes for person/bus classes and saving the output to `sample_boxed.jpg`.
   - **PPE Dataset Downloader:** `detection/download_ppe_dataset.py` successfully downloaded and unpacked the Ultralytics Construction-PPE dataset (~170.2 MB ZIP) containing 1,263 images and 1,426 labels.
 
+---
+
+## 🏷️ Update 5: Custom PPE Model Integration & Detection Directory Cleanup
+- **Custom Model Integration:** Located user's custom trained PPE model `best_ppe.pt` in `C:\Users\panga\Downloads\` and copied it to `models/best_ppe.pt` and `detection/models/best_ppe.pt`.
+- **Model Verification:** Verified `best_ppe.pt` classes using Ultralytics:
+  - Classes (11): `helmet`, `gloves`, `vest`, `boots`, `goggles`, `none`, `Person`, `no_helmet`, `no_goggle`, `no_gloves`, `no_boots`.
+- **Dataset Cleanup:** Removed the downloaded raw dataset folder `detection/ppe_dataset/` to avoid cluttering the repository.
+- **Git Ignore Updates:** Updated `.gitignore` to exclude raw dataset directories, zip archives, and large model weights.
+- **PPE Detection Module:** Created `detection/ppe_detector.py` providing a reusable `PPEDetector` class that detects equipment and identifies specific safety violations. Verified inference on test assets.
+
+

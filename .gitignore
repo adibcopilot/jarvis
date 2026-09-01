@@ -22,11 +22,16 @@ env/
 .idea/
 *.code-workspace
 
-# YOLO / model weights
+# YOLO / model weights & datasets
 *.pt
 *.onnx
 *.engine
 weights/
+models/*.pt
+detection/models/*.pt
+*dataset*/
+datasets/
+*.zip
 
 # DeepFace cache
 .deepface/
