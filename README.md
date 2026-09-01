@@ -1,9 +1,9 @@
 # JARVIS — Joint Autonomous Reasoning & Vision Inspection System
 
 **Group No. 12**
-*Adib Sajjad Patel* (Roll No. 59 | Enrollment No. 24211320284)
-*Rudra Sujit Sagar*
-*Abhishek Chavan*
+*Adib Sajjad Patel* (Roll No. 26 | Enrollment No. 24211320284)  
+*Rudra Sujit Sagar* (Roll No. 27 | Enrollment No. 24211320291)  
+*Abhishek Sharadchandra Chavan* (Roll No. 24 | Enrollment No. 24211320226)
 *Rasiklal M. Dhariwal Institute of Technology*
 *Diploma in Computer Engineering | 5th Semester*
 
