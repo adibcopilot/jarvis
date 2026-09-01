@@ -10,11 +10,14 @@ import sys
 import json
 import tempfile
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
+from dotenv import load_dotenv
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
+
+load_dotenv()
 
 import streamlit as st
 import cv2
@@ -40,6 +43,7 @@ from simulation.conveyor import (
     manual_stop as stop_conveyor,
 )
 from reports.export import export_events_to_csv, get_events_dataframe
+from agent.shift_report import generate_shift_report
 
 
 # ── Page Configuration ────────────────────────────────────────────────────────
@@ -364,6 +368,7 @@ page = st.sidebar.radio(
         "⚙️  Conveyor Control",
         "🌐  Digital Twin",
         "📈  Violation Trends",
+        "📋  Shift Handover",
         "✅  Approval Queue",
         "📜  Event Log",
     ],
@@ -444,7 +449,6 @@ if page == "📊  Dashboard":
                 unsafe_allow_html=True,
             )
 
-            # Render HTML Table with row truncation
             table_rows_html = ""
             for e in events[:15]:
                 sev_html = format_severity(e["severity"])
@@ -951,7 +955,65 @@ elif page == "📈  Violation Trends":
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  PAGE 6: APPROVAL QUEUE
+#  PAGE 6: SHIFT HANDOVER REPORT (FR-15)
+# ══════════════════════════════════════════════════════════════════════════════
+elif page == "📋  Shift Handover":
+    st.markdown(
+        '<div class="section-title"><span>Automated Shift Handover Report</span><span style="font-weight:400;color:#a0a0a0;">LLM Reasoning &amp; Summarization</span></div>',
+        unsafe_allow_html=True,
+    )
+    st.caption(
+        "Autonomous generation of plain-English shift handover summaries for oncoming plant supervisors per SRS FR-15 & Section 6.3."
+    )
+
+    col_h1, col_h2 = st.columns([1.5, 1])
+
+    with col_h1:
+        time_preset = st.selectbox(
+            "Shift Time Window Preset",
+            ["All Recorded Incidents (Full Log)", "Last 8 Hours (Current Shift)", "Today (24 Hours)"],
+        )
+
+    start_iso = None
+    end_iso = None
+    window_label = time_preset
+
+    if "8 Hours" in time_preset:
+        start_iso = (datetime.now() - timedelta(hours=8)).strftime("%Y-%m-%d %H:%M:%S")
+        end_iso = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    elif "Today" in time_preset:
+        start_iso = datetime.now().strftime("%Y-%m-%d 00:00:00")
+        end_iso = datetime.now().strftime("%Y-%m-%d 23:59:59")
+
+    with col_h2:
+        st.markdown("<div style='height:28px;'></div>", unsafe_allow_html=True)
+        generate_btn = st.button("Generate Handover Report", type="primary", use_container_width=True)
+
+    if generate_btn:
+        with st.spinner("Analyzing incident telemetry and formulating handover brief..."):
+            report_res = generate_shift_report(start_iso, end_iso, window_label)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        st.markdown(
+            f"""
+        <div class="detail-panel" style="padding:24px; line-height:1.7;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:8px;">
+                <span class="detail-label">REASONING ENGINE: {report_res['provider']}</span>
+                <span style="font-size:11px; color:#a0a0a0;">EVENTS ANALYZED: {report_res['event_count']} &nbsp;|&nbsp; GENERATED: {report_res['generated_at']}</span>
+            </div>
+            <div>
+        """,
+            unsafe_allow_html=True,
+        )
+
+        st.markdown(report_res["summary"])
+
+        st.markdown("</div></div>", unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  PAGE 7: APPROVAL QUEUE
 # ══════════════════════════════════════════════════════════════════════════════
 elif page == "✅  Approval Queue":
     st.markdown(
@@ -1018,7 +1080,7 @@ elif page == "✅  Approval Queue":
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  PAGE 7: EVENT LOG (HASH-CHAINED AUDIT TRAIL + CSV EXPORT)
+#  PAGE 8: EVENT LOG (HASH-CHAINED AUDIT TRAIL + CSV EXPORT)
 # ══════════════════════════════════════════════════════════════════════════════
 elif page == "📜  Event Log":
     st.markdown(

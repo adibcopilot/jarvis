@@ -175,6 +175,24 @@ This log tracks all steps executed during the setup and testing of the JARVIS pr
   - Created [`presentation_notes.md`](file:///d:/final%20year/jarvis/presentation_notes.md) containing elevator pitch, real vs. simulated boundary breakdown, panel Q&A answers, and a 2-minute live demo walkthrough.
 - **Overall Completion:** Progress elevated to **~65–70%** (12 of 18 Functional Requirements completed).
 
+---
+
+## 🏷️ Update 13: Shift Handover Report & LLM Integration Layer (FR-15)
+- **Dependency & Configuration Management:**
+  - Installed `openai` (v1.x) and `python-dotenv`.
+  - Updated `.env.example` with template configurations for NVIDIA NIM (`meta/llama-3.1-8b-instruct`), OpenRouter (`openai/gpt-oss-120b`), and direct OpenAI endpoints.
+- **Shift Handover Module (`agent/shift_report.py`):**
+  - Created `generate_shift_report(start_time, end_time, time_window_label)`.
+  - Queries `events` table for incidents in the specified time window.
+  - Formulates structured prompt to LLM for multi-domain shift summarization (PPE compliance, fire hazards, conveyor downtime, pending approval authorizations, and actionable safety recommendations).
+  - Implemented **Graceful Local Degradation (NFR-7)**: If API key is not configured or network request fails, automatically falls back to an intelligent local deterministic rule engine to ensure zero downtime during evaluation.
+- **Dashboard Interface (`dashboard/app.py`):**
+  - Added **"📋 Shift Handover"** navigation page.
+  - Included shift presets ("All Recorded Incidents", "Last 8 Hours (Current Shift)", "Today (24 Hours)") and one-click report generation.
+  - Formatted output card displaying LLM provider attribution, event count, generation timestamp, and structured markdown summary.
+- **Progress Milestone:** **13 of 18 Functional Requirements** completed (~72% total system completion).
+
+
 
 
 
