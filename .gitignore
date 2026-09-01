@@ -22,16 +22,11 @@ env/
 .idea/
 *.code-workspace
 
-# YOLO / model weights & datasets
-*.pt
-*.onnx
-*.engine
-weights/
-models/*.pt
-detection/models/*.pt
+# Training Datasets & Raw Archives (not needed at runtime)
 *dataset*/
 datasets/
 *.zip
+*.tar.gz
 
 # DeepFace cache
 .deepface/
@@ -41,8 +36,8 @@ reports/*.pdf
 reports/*.xlsx
 reports/*.html
 
-# Streamlit
-.streamlit/
+# Streamlit secrets (keep config.toml committed for theme)
+.streamlit/secrets.toml
 
 # Jupyter
 *.ipynb_checkpoints/
