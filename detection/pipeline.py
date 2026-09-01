@@ -1,11 +1,12 @@
 """
 detection/pipeline.py
-Unified detection pipeline: runs the correct model, logs to SQLite, classifies with the agent.
+Unified detection & simulation pipeline: runs the correct model or simulator, logs to SQLite, classifies with the agent.
 
 Usage:
-    from detection.pipeline import run_ppe_pipeline, run_fire_pipeline
+    from detection.pipeline import run_ppe_pipeline, run_fire_pipeline, run_conveyor_fault_pipeline
     event_id = run_ppe_pipeline("path/to/image.jpg")
     event_id = run_fire_pipeline("path/to/image.jpg")
+    event_id = run_conveyor_fault_pipeline("jam")
 """
 
 import sys
@@ -17,6 +18,7 @@ if str(ROOT_DIR) not in sys.path:
 
 from detection.ppe_detector import PPEDetector
 from detection.fire_detector import FireSmokeDetector
+from simulation.conveyor import trigger_fault, is_commanded_change, get_status
 from database.db import insert_event
 from agent.reasoner import classify_event
 
@@ -101,4 +103,36 @@ def run_fire_pipeline(image_path: str) -> dict:
         "summary": result["summary"],
         "classification": classification,
         "annotated_image": result["annotated_image"],
+    }
+
+
+def run_conveyor_fault_pipeline(fault_type: str = "mechanical_jam") -> dict:
+    """
+    Full Conveyor Fault pipeline: trigger fault -> classify -> log to database.
+    Returns dict with event_id, conveyor_status, and classification.
+    """
+    status_info = trigger_fault(fault_type=fault_type)
+    commanded = is_commanded_change()
+
+    # Run reasoning agent
+    classification = classify_event(
+        "conveyor",
+        source_file=f"Conveyor Line {status_info['line_id']}",
+        extra_data={"status": status_info["status"], "commanded": commanded, "fault_type": fault_type}
+    )
+
+    # Log to database
+    event_id = insert_event(
+        event_type="conveyor",
+        source_file=f"Conveyor Line {status_info['line_id']} ({fault_type})",
+        detections=[{"label": "conveyor_fault", "fault_type": fault_type, "confidence": 1.0}],
+        severity=classification["severity"],
+        category=classification["category"],
+        proposed_action=classification["proposed_action"],
+    )
+
+    return {
+        "event_id": event_id,
+        "conveyor_status": status_info,
+        "classification": classification,
     }

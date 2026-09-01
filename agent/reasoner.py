@@ -6,26 +6,42 @@ Takes a detection event, returns severity + category + proposed action.
 This is the rule-engine version; LLM-assisted reasoning is planned for Phase 8.
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 
-def classify_event(event_type: str, detections: List[Dict], source_file: str = "") -> Dict[str, str]:
+def classify_event(event_type: str, detections: Optional[List[Dict]] = None, source_file: str = "", extra_data: Optional[Dict] = None) -> Dict[str, str]:
     """
     Rule-based event classification.
     
     Args:
-        event_type: "ppe" or "fire"
+        event_type: "ppe", "fire", or "conveyor"
         detections: list of detection dicts from PPEDetector or FireSmokeDetector
-        source_file: filename that triggered the detection
+        source_file: filename or identifier that triggered the detection
+        extra_data: optional dictionary containing additional context (e.g., fault_type, commanded flag)
     
     Returns:
         dict with keys: severity, category, proposed_action, reasoning
     """
+    detections = detections or []
+    extra_data = extra_data or {}
 
     if event_type == "fire":
         return _classify_fire(detections)
     elif event_type == "ppe":
         return _classify_ppe(detections)
+    elif event_type == "conveyor":
+        status = extra_data.get("status", "faulted")
+        commanded = extra_data.get("commanded", False)
+        fault_type = extra_data.get("fault_type", "mechanical_jam")
+        res = classify_conveyor_event(status=status, commanded=commanded, fault_type=fault_type)
+        if res:
+            return res
+        return {
+            "severity": "low",
+            "category": "mechanical",
+            "proposed_action": "Commanded status change — no action required.",
+            "reasoning": "Conveyor status change was user-commanded."
+        }
     else:
         return {
             "severity": "low",
@@ -33,6 +49,31 @@ def classify_event(event_type: str, detections: List[Dict], source_file: str = "
             "proposed_action": "Log event for review.",
             "reasoning": f"Unknown event type '{event_type}'. Logged for manual review."
         }
+
+
+def classify_conveyor_event(status: str, commanded: bool, fault_type: str = "mechanical_jam") -> Optional[Dict[str, str]]:
+    """
+    Classify conveyor state changes.
+    Returns None if commanded (not an incident requiring approval), or dict with action proposal if unplanned fault.
+    """
+    if commanded:
+        # Not an incident - don't even log it as an event needing approval
+        return None
+
+    if status == "faulted":
+        return {
+            "severity": "high",
+            "category": "mechanical",
+            "proposed_action": (
+                f"Flag conveyor for maintenance inspection (Fault: {fault_type}). "
+                "Halt dependent downstream processes and dispatch technician."
+            ),
+            "reasoning": (
+                f"Conveyor stopped without a commanded action (unplanned fault: '{fault_type}') — "
+                "classified as unplanned mechanical fault requiring supervisor authorization."
+            ),
+        }
+    return None
 
 
 def _classify_fire(detections: List[Dict]) -> Dict[str, str]:

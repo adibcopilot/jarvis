@@ -21,7 +21,8 @@ import tempfile
 from datetime import datetime
 
 from database.db import get_all_events, get_pending_events, get_event_stats, update_approval
-from detection.pipeline import run_ppe_pipeline, run_fire_pipeline
+from detection.pipeline import run_ppe_pipeline, run_fire_pipeline, run_conveyor_fault_pipeline
+from simulation.conveyor import get_status as get_conveyor_status, run as run_conveyor, manual_stop as stop_conveyor
 
 
 # ── Page Config ──────────────────────────────────────────────────────────────
@@ -179,7 +180,7 @@ st.markdown("""
 # ── Sidebar Navigation ──────────────────────────────────────────────────────
 page = st.sidebar.radio(
     "Navigation",
-    ["Dashboard", "Upload & Detect", "Approval Queue", "Event Log"],
+    ["Dashboard", "Upload & Detect", "Conveyor Control", "Approval Queue", "Event Log"],
     index=0,
 )
 st.sidebar.markdown("---")
@@ -232,7 +233,7 @@ if page == "Dashboard":
             })
         st.dataframe(display_data, use_container_width=True, hide_index=True)
     else:
-        st.caption("No events recorded. Upload an image to begin.")
+        st.caption("No events recorded. Upload an image or trigger conveyor simulation to begin.")
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -298,6 +299,57 @@ elif page == "Upload & Detect":
 
 
 # ════════════════════════════════════════════════════════════════════════════
+#  PAGE: Conveyor Control (Simulation Layer)
+# ════════════════════════════════════════════════════════════════════════════
+elif page == "Conveyor Control":
+    st.markdown('<div class="section-heading">Conveyor Line 1 — Software Simulation</div>', unsafe_allow_html=True)
+    st.caption("Simulated motor/sensor feed standing in for PLC signal per Project Proposal Section 4.")
+
+    c_status = get_conveyor_status()
+    curr_status = c_status["status"]
+    
+    col_s1, col_s2, col_s3 = st.columns(3)
+    with col_s1:
+        st.markdown(f'<div class="stat-card"><div class="num">{c_status["line_id"]}</div><div class="label">Line ID</div></div>', unsafe_allow_html=True)
+    with col_s2:
+        st.markdown(f'<div class="stat-card"><div class="num">{curr_status.upper()}</div><div class="label">Current State</div></div>', unsafe_allow_html=True)
+    with col_s3:
+        st.markdown(f'<div class="stat-card"><div class="num">{c_status.get("last_change_reason", "—")[:18]}</div><div class="label">Last Change Reason</div></div>', unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown('<div class="section-heading">Operational Controls</div>', unsafe_allow_html=True)
+
+    col_btn1, col_btn2 = st.columns(2)
+    with col_btn1:
+        if st.button("▶ Run Line (Commanded)", use_container_width=True):
+            run_conveyor()
+            st.success("Conveyor Line 1 commanded to RUN. (Normal operational state — no incident logged).")
+            st.rerun()
+    with col_btn2:
+        if st.button("⏹ Manual Stop (Commanded)", use_container_width=True):
+            stop_conveyor()
+            st.info("Conveyor Line 1 commanded to STOP. (User-commanded stop — distinguished from unplanned fault).")
+            st.rerun()
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown('<div class="section-heading">Fault Injection (Unplanned Incident Simulation)</div>', unsafe_allow_html=True)
+    
+    col_fault_type, col_fault_act = st.columns([2, 1])
+    with col_fault_type:
+        fault_choice = st.selectbox(
+            "Select Fault Type to Inject",
+            ["mechanical_jam", "motor_overheat", "sensor_desync", "belt_misalignment"],
+            label_visibility="collapsed"
+        )
+    with col_fault_act:
+        if st.button("⚡ Inject Unplanned Fault", use_container_width=True):
+            res = run_conveyor_fault_pipeline(fault_choice)
+            st.warning(f"Unplanned fault '{fault_choice}' injected! Logged as Event #{res['event_id']}.")
+            st.caption("Reasoning agent classified severity as HIGH (mechanical). Action queued in Approval Queue.")
+            st.rerun()
+
+
+# ════════════════════════════════════════════════════════════════════════════
 #  PAGE: Approval Queue
 # ════════════════════════════════════════════════════════════════════════════
 elif page == "Approval Queue":
@@ -347,7 +399,7 @@ elif page == "Event Log":
     else:
         col_f1, col_f2 = st.columns(2)
         with col_f1:
-            type_filter = st.selectbox("Type", ["All", "PPE", "Fire"], label_visibility="visible")
+            type_filter = st.selectbox("Type", ["All", "PPE", "Fire", "Conveyor"], label_visibility="visible")
         with col_f2:
             status_filter = st.selectbox("Status", ["All", "Pending", "Approved", "Denied"], label_visibility="visible")
 
@@ -378,7 +430,7 @@ elif page == "Event Log":
                     if dets:
                         st.markdown("**Detections**")
                         for i, d in enumerate(dets, 1):
-                            st.text(f"  #{i:02d}  {d['label']:<12} conf={d['confidence']:.3f}  bbox={d['bbox']}")
+                            st.text(f"  #{i:02d}  {d.get('label','-'):<15} conf={d.get('confidence',1.0):.3f}  bbox={d.get('bbox','-')}")
 
                 st.caption(f"hash: {(event.get('record_hash') or '—')[:32]}...")
                 st.caption(f"prev: {(event.get('prev_hash') or '—')[:32]}...")

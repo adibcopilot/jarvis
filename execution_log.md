@@ -124,6 +124,24 @@ This log tracks all steps executed during the setup and testing of the JARVIS pr
   - Fire pipeline test: `fire.jpg` -> fire detected (88.8%) -> severity `critical` -> action "Alert fire safety officer" -> Event #2 logged.
   - Both events visible in database with `pending` approval status and valid hash chains.
 
+---
+
+## 🏷️ Update 10: Conveyor Simulation Layer & Full Multi-Modal Pipeline Integration
+- **Simulation Layer (`simulation/conveyor.py`):**
+  - Created state machine representing Line 1 operating states (`running`, `stopped`, `faulted`) per Proposal Section 4.
+  - Implemented commanded state changes: `run()` and `manual_stop()` (persisted to `conveyor_state` table; not flagged as incidents).
+  - Implemented `trigger_fault(fault_type)` for injecting unplanned mechanical/sensor incidents (`is_commanded_change() == False`).
+- **Agent Integration (`agent/reasoner.py`):**
+  - Added `classify_conveyor_event()`: distinguishes commanded stops (returns `None`) from unplanned faults (returns severity `high`, category `mechanical`, maintenance action proposal).
+- **Unified Pipeline (`detection/pipeline.py`):**
+  - Added `run_conveyor_fault_pipeline()` to orchestrate: fault injection -> state machine update -> agent reasoning -> SQLite hash-chained event insertion.
+- **Dashboard Extension (`dashboard/app.py`):**
+  - Added "Conveyor Control" page with live status cards, commanded Run/Stop buttons, and interactive Fault Injection with choice of fault types (`mechanical_jam`, `motor_overheat`, etc.).
+  - Updated Event Log filter to support `Conveyor` events.
+- **Verification:**
+  - `test_pipeline.py` verified end-to-end: commanded Run/Stop update state without creating incident events; `trigger_fault` logs Event #5 as `high` severity mechanical fault with pending approval.
+
+
 
 
 
