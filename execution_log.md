@@ -61,4 +61,16 @@ This log tracks all steps executed during the setup and testing of the JARVIS pr
 - **Git Ignore Updates:** Updated `.gitignore` to exclude raw dataset directories, zip archives, and large model weights.
 - **PPE Detection Module:** Created `detection/ppe_detector.py` providing a reusable `PPEDetector` class that detects equipment and identifies specific safety violations. Verified inference on test assets.
 
+---
+
+## 🏷️ Update 6: Model Path Consolidation & Violation Logic Refinement
+- **Model Path Cleanup:** Removed redundant top-level `models/` folder; consolidated all model references to the canonical path `detection/models/best_ppe.pt`.
+- **Video Analysis Extension:** Enhanced `detection/ppe_detector.py` with `detect_video()` method and CLI `--video` arguments to process video files frame-by-frame and save annotated video files.
+- **Violation Logic Refinement:**
+  - Verified that the `none` class in the Construction-PPE dataset represents unequipped safety gear (missing vests on worker torsos).
+  - Added `none` to `VIOLATION_CLASSES` (`{"no_helmet", "no_goggle", "no_gloves", "no_boots", "none"}`).
+  - Refactored detection logic to use a clean set membership check `if label in self.VIOLATION_CLASSES:` instead of redundant string prefix checks.
+- **Verification:** Ran test suite against `sample.jpg` and `sample.mp4`, successfully identifying 3 PPE violations on the test image and 31 violations across video frames.
+
+
 
