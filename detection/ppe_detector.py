@@ -21,6 +21,15 @@ class PPEDetector:
     Default model: models/best_ppe.pt or detection/models/best_ppe.pt
     """
 
+    # Set of classes representing PPE non-compliance / violations
+    VIOLATION_CLASSES = {
+        "no_helmet",
+        "no_goggle",
+        "no_gloves",
+        "no_boots",
+        "none",  # Represents missing vest / unequipped PPE
+    }
+
     def __init__(self, model_path: Union[str, Path] = None, conf_threshold: float = 0.25):
         self.conf_threshold = conf_threshold
         
@@ -45,7 +54,7 @@ class PPEDetector:
         Returns:
             dict containing:
                 - detections: list of bounding boxes, labels, and confidences
-                - violations: list of detected violations (e.g. no_helmet, no_gloves, no_boots)
+                - violations: list of detected violations (e.g. no_helmet, no_gloves, no_boots, none)
                 - summary: counts of each detected class
                 - annotated_image: numpy BGR image with plotted bounding boxes
         """
@@ -72,7 +81,7 @@ class PPEDetector:
             summary[label] = summary.get(label, 0) + 1
 
             # Check if this detection indicates a violation
-            if label.startswith("no_") or label in ["no_helmet", "no_goggle", "no_gloves", "no_boots"]:
+            if label in self.VIOLATION_CLASSES:
                 violations.append(det_item)
 
         annotated_image = result.plot()
