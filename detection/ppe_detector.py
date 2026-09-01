@@ -5,7 +5,7 @@ Core PPE Detection module using the trained YOLO model (best_ppe.pt).
 Provides:
 - PPEDetector: Class for image and video frame analysis
 - Violation analysis (missing helmet, missing vest, etc.)
-- Annotated frame generation
+- Annotated frame generation and video processing
 """
 
 from pathlib import Path
@@ -26,19 +26,12 @@ class PPEDetector:
         
         # Locate model path
         if model_path is None:
-            candidates = [
-                Path("detection/models/best_ppe.pt"),
-                Path("models/best_ppe.pt"),
-                Path("yolo26n.pt"),
-            ]
-            for c in candidates:
-                if c.exists():
-                    self.model_path = c
-                    break
-            else:
-                self.model_path = Path("detection/models/best_ppe.pt")
+            self.model_path = Path("detection/models/best_ppe.pt")
         else:
             self.model_path = Path(model_path)
+
+        if not self.model_path.exists():
+            raise FileNotFoundError(f"Model file not found at: {self.model_path}")
 
         print(f"[INFO] Initializing PPEDetector with model: {self.model_path}")
         self.model = YOLO(str(self.model_path))
@@ -92,27 +85,104 @@ class PPEDetector:
             "annotated_image": annotated_image
         }
 
+    def detect_video(self, video_path: Union[str, Path], output_path: Union[str, Path] = None) -> Dict[str, Any]:
+        """
+        Process a video file frame by frame with PPE detection.
+        """
+        v_path = Path(video_path)
+        if not v_path.exists():
+            raise FileNotFoundError(f"Video file not found: {v_path}")
+
+        cap = cv2.VideoCapture(str(v_path))
+        if not cap.isOpened():
+            raise IOError(f"Could not open video file: {v_path}")
+
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+        writer = None
+        if output_path:
+            out_p = Path(output_path)
+            fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+            writer = cv2.VideoWriter(str(out_p), fourcc, fps, (width, height))
+
+        frame_count = 0
+        total_detections = 0
+        total_violations = 0
+        aggregated_summary = {}
+
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            frame_count += 1
+            res = self.detect(frame)
+            total_detections += len(res["detections"])
+            total_violations += len(res["violations"])
+
+            for k, v in res["summary"].items():
+                aggregated_summary[k] = aggregated_summary.get(k, 0) + v
+
+            if writer:
+                writer.write(res["annotated_image"])
+
+        cap.release()
+        if writer:
+            writer.release()
+
+        return {
+            "frames_processed": frame_count,
+            "total_detections": total_detections,
+            "total_violations": total_violations,
+            "aggregated_summary": aggregated_summary,
+            "output_path": str(output_path) if output_path else None
+        }
+
 
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="Test PPE detection on an image or video")
-    parser.add_argument("--image", type=str, default="detection/test_inputs/sample.jpg", help="Path to input image")
+    parser.add_argument("--image", type=str, default=None, help="Path to input image")
+    parser.add_argument("--video", type=str, default=None, help="Path to input video")
     parser.add_argument("--conf", type=float, default=0.25, help="Confidence threshold")
     args = parser.parse_args()
 
+    # Default to sample.jpg if neither specified
+    if args.image is None and args.video is None:
+        args.image = "detection/test_inputs/sample.jpg"
+
     detector = PPEDetector(conf_threshold=args.conf)
-    res = detector.detect(args.image)
 
-    print("\n--- Detection Results ---")
-    print(f"Total Detections: {len(res['detections'])}")
-    print(f"Summary Counts : {res['summary']}")
-    print(f"Violations Found: {len(res['violations'])}")
-    for v in res['violations']:
-        print(f"  [VIOLATION] {v['label']} (conf: {v['confidence']}) at {v['bbox']}")
+    if args.image:
+        print(f"\n[INFO] Running inference on image: {args.image}")
+        res = detector.detect(args.image)
 
-    out_path = Path("detection/test_inputs/sample_ppe_detected.jpg")
-    cv2.imwrite(str(out_path), res["annotated_image"])
-    print(f"\n[OK] Annotated output saved to: {out_path}")
+        print("\n--- Image Detection Results ---")
+        print(f"Total Detections: {len(res['detections'])}")
+        print(f"Summary Counts  : {res['summary']}")
+        print(f"Violations Found: {len(res['violations'])}")
+        for i, det in enumerate(res['detections']):
+            tag = "[VIOLATION]" if det in res['violations'] else "[DETECTED] "
+            print(f"  {tag} #{i+1:02d}: {det['label']:<12} conf={det['confidence']:.3f} bbox={det['bbox']}")
+
+        out_path = Path("detection/test_inputs/sample_ppe_detected.jpg")
+        cv2.imwrite(str(out_path), res["annotated_image"])
+        print(f"\n[OK] Annotated image saved to: {out_path}")
+
+    if args.video:
+        print(f"\n[INFO] Running inference on video: {args.video}")
+        out_video = Path("detection/test_inputs/sample_ppe_detected.mp4")
+        v_res = detector.detect_video(args.video, output_path=out_video)
+
+        print("\n--- Video Detection Results ---")
+        print(f"Frames Processed : {v_res['frames_processed']}")
+        print(f"Total Detections : {v_res['total_detections']}")
+        print(f"Total Violations : {v_res['total_violations']}")
+        print(f"Aggregated Counts: {v_res['aggregated_summary']}")
+        print(f"\n[OK] Annotated video saved to: {out_video}")
 
 
 if __name__ == "__main__":
