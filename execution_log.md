@@ -141,6 +141,21 @@ This log tracks all steps executed during the setup and testing of the JARVIS pr
 - **Verification:**
   - `test_pipeline.py` verified end-to-end: commanded Run/Stop update state without creating incident events; `trigger_fault` logs Event #5 as `high` severity mechanical fault with pending approval.
 
+---
+
+## 🏷️ Update 11: Dashboard UI Bug Fixes & Stitch Minimal Monochrome Implementation
+- **Layout & Rendering Bug Fixes:**
+  - Resolved theme split background conflict by enforcing a unified `#0a0a0a` dark canvas across sidebar, app view container, headers, and inputs.
+  - Fixed sidebar navigation labels to consistently display icon + label (`📊 Dashboard`, `📤 Upload & Detect`, `⚙️ Conveyor Control`, `✅ Approval Queue`, `📜 Event Log`) with active 3px solid white left accent indicator.
+  - Eliminated top header clipping with dedicated margins and strict hierarchy.
+  - Fixed table horizontal overflow by applying ellipsis text truncation to the "Proposed Action" column and adding a dedicated deep audit Event Inspection Panel.
+- **Stitch Design System Application:**
+  - Applied zero-color, zero-gradient, zero-shadow Swiss minimal aesthetic.
+  - Standardized 5 stat cards with uniform 1px borders (`rgba(255,255,255,0.1)`), 8px radius, and 32px bold white numbers.
+  - Replaced colored badges with tonal text weights and monochrome status dots.
+  - Wired live SQLite queries, multi-domain pipeline execution, and approval actions directly into the new UI.
+
+
 
 
 
