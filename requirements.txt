@@ -44,3 +44,7 @@ loguru               # Beautiful logging
 requests             # HTTP requests
 schedule             # Job scheduling (cron-like)
 tqdm                 # Progress bars
+
+# ── API ──────────────────────────────────────
+fastapi              # API Framework
+uvicorn              # ASGI Server
