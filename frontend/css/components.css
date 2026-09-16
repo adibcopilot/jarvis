@@ -71,15 +71,35 @@
 }
 
 /* Facility Map */
-.facility-map {
+.facility-map-spatial {
     background-color: var(--color-surface-subtle);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     min-height: 400px;
     padding: var(--space-8);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    overflow-x: auto;
+}
+
+.map-zone {
+    margin-bottom: var(--space-8);
+    position: relative;
+}
+
+.map-zone-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: var(--space-4);
+    display: inline-block;
+    background: var(--color-bg);
+    padding: 0 var(--space-2);
+}
+
+.map-zone-content {
+    border-top: 1px dashed var(--color-border);
+    padding-top: var(--space-6);
     position: relative;
 }
 
@@ -88,21 +108,42 @@
     border: 1px solid var(--color-border-strong);
     padding: var(--space-4);
     border-radius: var(--radius-md);
-    width: 250px;
-    text-align: center;
-    margin: var(--space-4);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    width: 220px;
+    margin: 0 auto;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 2;
+}
+
+.map-node:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    border-color: var(--color-clay-soft);
+}
+
+.map-node.active {
+    border-color: var(--color-clay);
+    box-shadow: 0 0 0 1px var(--color-clay);
 }
 
 .map-node-title {
     font-weight: 600;
+    font-size: 0.875rem;
     margin-bottom: var(--space-2);
 }
 
 .map-node-line {
     font-size: 0.75rem;
     color: var(--color-text-secondary);
-    margin-bottom: var(--space-2);
+    margin-bottom: var(--space-3);
+}
+
+.map-connector {
+    position: absolute;
+    left: 50%;
+    width: 1.5px;
+    background-color: var(--color-border-strong);
+    z-index: 1;
 }
 
 /* Overview Summary */

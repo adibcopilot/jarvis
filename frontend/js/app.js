@@ -39,20 +39,89 @@ function updateFacilityMap(machines) {
     if (!mapEl) return;
     
     mapEl.innerHTML = ""; // Clear
-    
-    machines.forEach(m => {
-        const node = document.createElement("div");
-        node.className = "map-node";
+
+    // Define spatial layout zones (hardcoded based on deep instruction for the 3 known machines)
+    const zones = [
+        { id: "ZONE 01 · PROCESSING", machines: ["machine-01"] },
+        { id: "ZONE 02 · ASSEMBLY", machines: ["machine-02"] },
+        { id: "ZONE 03 · PACKAGING", machines: ["machine-03"] }
+    ];
+
+    let lastNodeRect = null;
+
+    zones.forEach((zone, index) => {
+        const zoneEl = document.createElement("div");
+        zoneEl.className = "map-zone";
         
-        node.innerHTML = `
-            <div class="map-node-title">${m.name}</div>
-            <div class="map-node-line">${m.line}</div>
-            <div class="badge ${getBadgeClass(m.state)}">${m.state}</div>
-            ${m.simulated ? '<div style="margin-top:8px; font-size:10px; color:var(--color-text-muted);">SIMULATED</div>' : ''}
-        `;
+        const labelEl = document.createElement("div");
+        labelEl.className = "map-zone-label";
+        labelEl.textContent = zone.id;
+        zoneEl.appendChild(labelEl);
+
+        const contentEl = document.createElement("div");
+        contentEl.className = "map-zone-content";
+        zoneEl.appendChild(contentEl);
+
+        // Find machines for this zone
+        const zoneMachines = machines.filter(m => zone.machines.includes(m.id));
         
-        mapEl.appendChild(node);
+        zoneMachines.forEach(m => {
+            const node = document.createElement("div");
+            node.className = "map-node";
+            node.dataset.machineId = m.id;
+            
+            node.innerHTML = `
+                <div class="map-node-title">${m.name}</div>
+                <div class="map-node-line">${m.line}</div>
+                <div class="badge ${getBadgeClass(m.state)}">● ${m.state}</div>
+            `;
+            
+            // Add connector if not the first zone
+            if (index > 0) {
+                const connector = document.createElement("div");
+                connector.className = "map-connector";
+                // Approx height based on margins (8 spaces = 2rem = 32px + padding)
+                connector.style.height = "64px";
+                connector.style.top = "-64px";
+                node.appendChild(connector);
+            }
+
+            // Interactive Click
+            node.addEventListener("click", () => {
+                document.querySelectorAll(".map-node").forEach(n => n.classList.remove("active"));
+                node.classList.add("active");
+                showMachineDetails(m);
+            });
+
+            contentEl.appendChild(node);
+        });
+
+        mapEl.appendChild(zoneEl);
     });
+}
+
+function showMachineDetails(machine) {
+    const panel = document.getElementById("machine-details-panel");
+    if (!panel) return;
+    
+    panel.style.display = "block";
+    document.getElementById("detail-name").textContent = machine.name;
+    document.getElementById("detail-line").textContent = machine.line;
+    
+    const statusEl = document.getElementById("detail-status");
+    statusEl.textContent = machine.state;
+    statusEl.className = `badge ${getBadgeClass(machine.state)}`;
+
+    // Mocking an event if FAULTED for demonstration
+    const eventsContainer = document.getElementById("detail-events-container");
+    const eventText = document.getElementById("detail-event-text");
+    
+    if (machine.state === "FAULTED" || machine.state === "STOPPED") {
+        eventsContainer.style.display = "block";
+        eventText.textContent = "Sensor mismatch detected at joint 4.";
+    } else {
+        eventsContainer.style.display = "none";
+    }
 }
 
 function getStatusColorClass(status) {
