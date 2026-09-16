@@ -1,0 +1,22 @@
+approval:
+  equipment_actions: required
+  safety_actions: required
+
+llm:
+  can_execute_actions: false
+  can_modify_database: false
+  can_delete_logs: false
+  can_change_permissions: false
+  can_modify_guardrails: false
+  can_approve_actions: false
+
+database:
+  allow_delete_events: false
+  allow_update_audit_records: false
+
+actions:
+  notifications: allowed
+  incident_creation: allowed
+  report_generation: allowed
+  simulated_equipment_control: approval_required
+  physical_hardware_control: prohibited
