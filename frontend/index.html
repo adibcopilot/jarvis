@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JARVIS | Live Dashboard</title>
+    
+    <link rel="stylesheet" href="css/reset.css">
+    <link rel="stylesheet" href="css/tokens.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+    
+    <style>
+        .text-critical { color: var(--status-critical); }
+        .text-warning { color: var(--status-warning); }
+        .text-success { color: var(--status-success); }
+    </style>
+</head>
+<body>
+    
+    <header class="app-header">
+        <div class="header-brand">
+            <div class="header-logo">JARVIS</div>
+            <div class="header-descriptor">Manufacturing Intelligence</div>
+        </div>
+        <nav class="header-nav">
+            <a href="index.html" class="nav-link active">Live Dashboard</a>
+            <a href="#" class="nav-link">Decisions</a>
+            <a href="#" class="nav-link">Approvals</a>
+            <a href="#" class="nav-link">History</a>
+            <a href="#" class="nav-link">Reports</a>
+            <a href="#" class="nav-link" id="nav-ai-config">AI API <span id="ai-status-dot" style="color:var(--status-neutral);">●</span> <span id="ai-status-text">Not Configured</span></a>
+        </nav>
+        <div class="header-user">
+            <span>Admin</span>
+        </div>
+    </header>
+
+    <main class="page-container">
+        
+        <div class="page-header">
+            <h1 class="page-title">Live Dashboard</h1>
+            <p class="page-subtitle">Real-time facility status and active monitoring.</p>
+        </div>
+
+        <section class="overview-summary">
+            <div class="summary-stat">
+                <span class="summary-label">Overall Status</span>
+                <span id="summary-overall" class="summary-value text-success">LOADING</span>
+            </div>
+            <div class="summary-stat">
+                <span class="summary-label">Active Alerts</span>
+                <span id="summary-alerts" class="summary-value">0</span>
+            </div>
+            <div class="summary-stat">
+                <span class="summary-label">Pending Approvals</span>
+                <span id="summary-approvals" class="summary-value">0</span>
+            </div>
+        </section>
+
+        <section class="card" style="margin-bottom: var(--space-8);">
+            <h2 class="card-title">SYSTEM GUARDRAILS</h2>
+            <ul style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.8;">
+                <li><span class="text-success">●</span> Human approval required for equipment actions</li>
+                <li><span class="text-success">●</span> Direct physical hardware control blocked</li>
+                <li><span class="text-success">●</span> LLM database modification blocked</li>
+                <li><span class="text-success">●</span> Audit deletion blocked</li>
+                <li><span class="text-success">●</span> Permission changes blocked</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2 class="card-title" style="margin-bottom: var(--space-6);">Facility Map</h2>
+            <div class="facility-map" id="facility-map-container">
+                <!-- Nodes will be injected here by JS -->
+                <div style="color:var(--color-text-muted);">Loading facility data...</div>
+            </div>
+        </section>
+        
+    </main>
+
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+
+    <!-- AI Configuration Modal -->
+    <div id="ai-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-content card">
+            <div style="display:flex; justify-content:space-between; margin-bottom:var(--space-6);">
+                <h2 class="page-subtitle" style="color:var(--color-text); margin:0;">AI API Configuration</h2>
+                <button id="ai-modal-close" class="btn btn-secondary" style="padding:4px 8px;">✕</button>
+            </div>
+            
+            <div style="margin-bottom:var(--space-4);">
+                <label style="display:block; font-size:0.875rem; margin-bottom:var(--space-2);">Provider</label>
+                <select id="ai-provider" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:var(--radius-sm);">
+                    <option>OpenAI</option>
+                    <option>Anthropic</option>
+                    <option>Google</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom:var(--space-4);">
+                <label style="display:block; font-size:0.875rem; margin-bottom:var(--space-2);">Model Name</label>
+                <input type="text" id="ai-model" value="GPT-4o" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:var(--radius-sm);">
+            </div>
+
+            <div style="margin-bottom:var(--space-6);">
+                <label style="display:block; font-size:0.875rem; margin-bottom:var(--space-2);">API Key</label>
+                <input type="password" id="ai-key" placeholder="••••••••••••••••••••" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:var(--radius-sm);">
+                <div style="font-size:0.75rem; color:var(--color-text-muted); margin-top:4px;">Keys are transmitted securely to the backend and never stored in the browser.</div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div id="ai-test-result" style="font-size:0.875rem; font-weight:500;"></div>
+                <button id="ai-test-btn" class="btn btn-primary">Test Connection</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
