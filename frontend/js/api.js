@@ -31,6 +31,15 @@ const api = {
             console.error(`Error posting to ${endpoint}:`, error);
             throw error;
         }
+    },
+    
+    async health() {
+        try {
+            const response = await fetch(`${API_BASE}/health`);
+            return response.ok;
+        } catch (e) {
+            return false;
+        }
     }
 };
 

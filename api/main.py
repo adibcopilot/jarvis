@@ -15,6 +15,7 @@ from database.db import (
     get_pending_events,
     get_event_stats,
     update_approval,
+    insert_event
 )
 from simulation.conveyor import get_status as get_conveyor_status
 
@@ -32,6 +33,10 @@ app.add_middleware(
 @app.get("/")
 def read_root():
     return {"status": "ok", "service": "JARVIS API"}
+
+@app.get("/api/health")
+def health_check():
+    return {"status": "ok"}
 
 @app.get("/api/status")
 def get_status():
@@ -89,6 +94,22 @@ def process_approval(req: ApprovalRequest):
     update_approval(req.event_id, status, req.user)
     return {"success": True, "event_id": req.event_id, "status": status}
 
+class TriggerRequest(BaseModel):
+    event_type: str
+    severity: str
+    category: str
+    proposed_action: str
+
+@app.post("/api/simulation/trigger")
+def trigger_simulation(req: TriggerRequest):
+    event_id = insert_event(
+        event_type=req.event_type,
+        severity=req.severity,
+        category=req.category,
+        proposed_action=req.proposed_action
+    )
+    return {"success": True, "event_id": event_id, "message": "Simulation event triggered"}
+
 @app.get("/api/machines")
 def get_machines():
     """Return digital twin / facility status for the frontend."""
@@ -100,7 +121,7 @@ def get_machines():
             "id": "machine-01",
             "name": "Primary Conveyor",
             "line": "Line 1",
-            "state": conveyor.get("state", "UNKNOWN"),
+            "state": conveyor.get("status", "UNKNOWN").upper(),
             "speed": conveyor.get("speed", 0),
             "simulated": True
         },

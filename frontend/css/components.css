@@ -191,3 +191,28 @@
     max-width: 450px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
+
+/* API Indicator */
+.api-indicator {
+    color: var(--color-text-muted) !important;
+    transition: color 0.3s ease;
+}
+
+.api-indicator.is-connected {
+    color: var(--status-success) !important;
+}
+
+/* SPA Views */
+.app-view {
+    display: none;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.app-view.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}

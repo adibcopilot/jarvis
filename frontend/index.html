@@ -23,25 +23,33 @@
             <div class="header-logo">JARVIS</div>
             <div class="header-descriptor">Manufacturing Intelligence</div>
         </div>
-        <nav class="header-nav">
-            <a href="index.html" class="nav-link active">Live Dashboard</a>
-            <a href="#" class="nav-link">Decisions</a>
-            <a href="#" class="nav-link">Approvals</a>
-            <a href="#" class="nav-link">History</a>
-            <a href="#" class="nav-link">Reports</a>
-            <a href="#" class="nav-link" id="nav-ai-config">AI API <span id="ai-status-dot" style="color:var(--status-neutral);">●</span> <span id="ai-status-text">Not Configured</span></a>
+        <nav class="header-nav" id="main-nav">
+            <a href="#floor-view" class="nav-link active">Floor View</a>
+            <a href="#trigger-console" class="nav-link">Trigger Console</a>
+            <a href="#reasoning-trail" class="nav-link">Reasoning Trail</a>
+            <a href="#pending-actions" class="nav-link">Pending Actions</a>
+            <a href="#worker-records" class="nav-link">Worker Records</a>
+            <a href="#audit-reports" class="nav-link">Audit Reports</a>
+            <a href="#risk-trends" class="nav-link">Risk Trends</a>
+            <a href="#ask-jarvis" class="nav-link">Ask JARVIS</a>
+            <a href="#upload-inspect" class="nav-link">Upload & Inspect</a>
+            <a href="#shift-handover" class="nav-link">Shift Handover</a>
+            <a href="#audit-verification" class="nav-link">Audit Verification</a>
+            <a href="#alert-setup" class="nav-link">Alert Setup</a>
+            <a href="#" class="nav-link api-indicator" id="nav-ai-config">API</a>
         </nav>
         <div class="header-user">
             <span>Admin</span>
         </div>
     </header>
 
-    <main class="page-container">
+    <main class="page-container" id="app-views">
         
-        <div class="page-header">
-            <h1 class="page-title">Live Dashboard</h1>
-            <p class="page-subtitle">Real-time facility status and active monitoring.</p>
-        </div>
+        <div id="view-floor-view" class="app-view">
+            <div class="page-header">
+                <h1 class="page-title">Floor View</h1>
+                <p class="page-subtitle">Real-time facility status and active monitoring.</p>
+            </div>
 
         <section class="overview-summary">
             <div class="summary-stat">
@@ -100,7 +108,307 @@
                 </div>
             </div>
         </section>
+        </div> <!-- End Floor View -->
         
+        <!-- Trigger Console View -->
+        <div id="view-trigger-console" class="app-view">
+            <div class="page-header">
+                <h1 class="page-title">Trigger Console</h1>
+                <p class="page-subtitle">Simulate real-time operational events.</p>
+            </div>
+            <section class="card" style="max-width: 600px;">
+                <div style="margin-bottom: var(--space-4);">
+                    <label style="display:block; font-size:0.875rem; margin-bottom:var(--space-2);">Event Type</label>
+                    <select id="trigger-event-type" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:var(--radius-sm);">
+                        <option value="fire">Fire Detected (Camera 04)</option>
+                        <option value="ppe">Missing PPE (Zone 2)</option>
+                        <option value="conveyor">Conveyor Jam (Line 1)</option>
+                    </select>
+                </div>
+                <div style="margin-bottom: var(--space-4);">
+                    <label style="display:block; font-size:0.875rem; margin-bottom:var(--space-2);">Severity</label>
+                    <select id="trigger-severity" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:var(--radius-sm);">
+                        <option value="CRITICAL">Critical</option>
+                        <option value="HIGH">High</option>
+                        <option value="MEDIUM">Medium</option>
+                    </select>
+                </div>
+                <div style="margin-bottom: var(--space-6);">
+                    <label style="display:block; font-size:0.875rem; margin-bottom:var(--space-2);">Proposed AI Action (Simulation)</label>
+                    <input type="text" id="trigger-action" value="SHUTDOWN_CONVEYOR" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:var(--radius-sm);">
+                </div>
+                <button id="btn-trigger" class="btn btn-primary">Trigger Event</button>
+                <div id="trigger-result" style="margin-top: var(--space-4); font-size: 0.875rem; font-weight: 500;"></div>
+            </section>
+        </div>
+
+        <!-- Pending Actions View -->
+        <div id="view-pending-actions" class="app-view">
+            <div class="page-header">
+                <h1 class="page-title">Pending Actions</h1>
+                <p class="page-subtitle">Human review required for AI-proposed actions.</p>
+            </div>
+            <section class="card">
+                <div id="pending-actions-list">
+                    <p style="color: var(--color-text-secondary);">Loading pending actions...</p>
+                </div>
+            </section>
+        </div>
+
+        <!-- Reasoning Trail View -->
+        <div id="view-reasoning-trail" class="app-view">
+            <div class="page-header">
+                <h1 class="page-title">Reasoning Trail</h1>
+                <p class="page-subtitle">AI logic and Guardrail validation inspection.</p>
+            </div>
+            <section class="card" style="max-width: 600px;">
+                <div style="margin-bottom: var(--space-4);">
+                    <label style="display:block; font-size:0.875rem; margin-bottom:var(--space-2);">Event Context</label>
+                    <textarea id="reasoning-context" rows="3" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:var(--radius-sm);">Fire detected in Sector 4</textarea>
+                </div>
+                <div style="margin-bottom: var(--space-4);">
+                    <label style="display:block; font-size:0.875rem; margin-bottom:var(--space-2);">Proposed Action</label>
+                    <input type="text" id="reasoning-action" value="DELETE_DATABASE" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:var(--radius-sm);">
+                    <div style="font-size:0.75rem; color:var(--color-text-muted); margin-top:4px;">Try a safe action like LOG_INCIDENT or a blocked action like DELETE_DATABASE.</div>
+                </div>
+                <button id="btn-test-reasoning" class="btn btn-primary">Test Guardrails</button>
+                
+                <div id="reasoning-result" style="display:none; margin-top: var(--space-6); padding-top: var(--space-4); border-top: 1px solid var(--color-border);">
+                    <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: var(--space-2);">Guardrail Result</h3>
+                    <div id="reasoning-status" class="badge" style="margin-bottom: var(--space-2);"></div>
+                    <pre id="reasoning-json" style="background: var(--color-surface-subtle); padding: var(--space-4); border-radius: var(--radius-sm); font-size: 0.75rem; overflow-x: auto; color: var(--color-text-secondary);"></pre>
+                </div>
+            </section>
+        </div>
+        <!-- Worker Records View -->
+        <div id="view-worker-records" class="app-view">
+            <div class="page-header">
+                <h1 class="page-title">Worker Records</h1>
+                <p class="page-subtitle">Historical safety compliance records.</p>
+            </div>
+            <section class="card">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--color-border); text-align: left; color: var(--color-text-secondary);">
+                            <th style="padding: var(--space-2);">Worker ID</th>
+                            <th style="padding: var(--space-2);">Name</th>
+                            <th style="padding: var(--space-2);">Total Incidents</th>
+                            <th style="padding: var(--space-2);">Last Incident Date</th>
+                            <th style="padding: var(--space-2);">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom: 1px solid var(--color-border);">
+                            <td style="padding: var(--space-3);">W-8472</td>
+                            <td style="padding: var(--space-3); font-weight: 500;">Miller, S.</td>
+                            <td style="padding: var(--space-3);">3</td>
+                            <td style="padding: var(--space-3);">2024-05-12</td>
+                            <td style="padding: var(--space-3);"><span class="badge badge-warning">Probation</span></td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--color-border);">
+                            <td style="padding: var(--space-3);">W-9211</td>
+                            <td style="padding: var(--space-3); font-weight: 500;">Davis, J.</td>
+                            <td style="padding: var(--space-3);">0</td>
+                            <td style="padding: var(--space-3);">-</td>
+                            <td style="padding: var(--space-3);"><span class="badge badge-success">Clear</span></td>
+                        </tr>
+                        <tr>
+                            <td style="padding: var(--space-3);">W-1044</td>
+                            <td style="padding: var(--space-3); font-weight: 500;">Lopez, M.</td>
+                            <td style="padding: var(--space-3);">1</td>
+                            <td style="padding: var(--space-3);">2024-06-01</td>
+                            <td style="padding: var(--space-3);"><span class="badge badge-success">Clear</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+        </div>
+
+        <!-- Audit Reports View -->
+        <div id="view-audit-reports" class="app-view">
+            <div class="page-header">
+                <h1 class="page-title">Audit Reports</h1>
+                <p class="page-subtitle">Monthly and quarterly compliance reporting.</p>
+            </div>
+            <section class="card">
+                <ul style="list-style: none; padding: 0; font-size: 0.875rem;">
+                    <li style="padding: var(--space-3); border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between;">
+                        <div>
+                            <div style="font-weight: 500;">Q2 2024 Safety Compliance Audit</div>
+                            <div style="color: var(--color-text-secondary); font-size: 0.75rem;">Generated: 2024-07-01</div>
+                        </div>
+                        <button class="btn btn-secondary">Download PDF</button>
+                    </li>
+                    <li style="padding: var(--space-3); border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between;">
+                        <div>
+                            <div style="font-weight: 500;">June 2024 PPE Exception Report</div>
+                            <div style="color: var(--color-text-secondary); font-size: 0.75rem;">Generated: 2024-06-30</div>
+                        </div>
+                        <button class="btn btn-secondary">Download PDF</button>
+                    </li>
+                    <li style="padding: var(--space-3); display: flex; justify-content: space-between;">
+                        <div>
+                            <div style="font-weight: 500;">Q1 2024 OSHA Logs</div>
+                            <div style="color: var(--color-text-secondary); font-size: 0.75rem;">Generated: 2024-04-01</div>
+                        </div>
+                        <button class="btn btn-secondary">Download PDF</button>
+                    </li>
+                </ul>
+            </section>
+        </div>
+
+        <!-- Risk Trends View -->
+        <div id="view-risk-trends" class="app-view">
+            <div class="page-header">
+                <h1 class="page-title">Risk Trends</h1>
+                <p class="page-subtitle">Aggregated facility risk analytics.</p>
+            </div>
+            <div style="display: flex; gap: var(--space-6); margin-bottom: var(--space-6);">
+                <div class="card" style="flex: 1;">
+                    <div style="font-size: 0.75rem; color: var(--color-text-secondary); text-transform: uppercase;">PPE Violations (30d)</div>
+                    <div style="font-size: 2rem; font-family: var(--font-display); color: var(--status-warning);">+12%</div>
+                </div>
+                <div class="card" style="flex: 1;">
+                    <div style="font-size: 0.75rem; color: var(--color-text-secondary); text-transform: uppercase;">Mechanical Faults (30d)</div>
+                    <div style="font-size: 2rem; font-family: var(--font-display); color: var(--status-success);">-5%</div>
+                </div>
+                <div class="card" style="flex: 1;">
+                    <div style="font-size: 0.75rem; color: var(--color-text-secondary); text-transform: uppercase;">Avg Resolution Time</div>
+                    <div style="font-size: 2rem; font-family: var(--font-display); color: var(--color-text);">4.2m</div>
+                </div>
+            </div>
+            <section class="card">
+                <p style="color: var(--color-text-secondary); text-align: center; padding: var(--space-12);">[ Chart Visualization Placeholder ]</p>
+            </section>
+        </div>
+
+        <!-- Shift Handover View -->
+        <div id="view-shift-handover" class="app-view">
+            <div class="page-header">
+                <h1 class="page-title">Shift Handover</h1>
+                <p class="page-subtitle">Summary of events for the incoming supervisor.</p>
+            </div>
+            <section class="card" style="max-width: 800px;">
+                <h3 style="font-size: 1rem; font-weight: 500; margin-bottom: var(--space-4); border-bottom: 1px solid var(--color-border); padding-bottom: var(--space-2);">Shift A → Shift B</h3>
+                <div style="font-size: 0.875rem; line-height: 1.6; color: var(--color-text);">
+                    <p><strong>Open Incidents:</strong> 0</p>
+                    <p><strong>Resolved Incidents:</strong> 4 (3 PPE, 1 Conveyor warning)</p>
+                    <p><strong>Notes:</strong> "Camera 04 in Zone 2 is reporting occasional dropped frames. IT ticket #4092 filed. Conveyor line 1 running smoothly after morning jam."</p>
+                </div>
+                <div style="margin-top: var(--space-6);">
+                    <button class="btn btn-primary">Sign & Accept Handover</button>
+                </div>
+            </section>
+        </div>
+
+        <!-- Audit Verification View -->
+        <div id="view-audit-verification" class="app-view">
+            <div class="page-header">
+                <h1 class="page-title">Audit Verification</h1>
+                <p class="page-subtitle">Cryptographic validation of event logs.</p>
+            </div>
+            <section class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-6);">
+                    <div style="font-size: 0.875rem;"><strong>Chain Status:</strong> <span class="text-success">INTACT</span></div>
+                    <button class="btn btn-secondary">Re-verify Chain</button>
+                </div>
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.75rem; font-family: monospace;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--color-border); text-align: left; color: var(--color-text-secondary);">
+                            <th style="padding: var(--space-2);">Event ID</th>
+                            <th style="padding: var(--space-2);">Record Hash</th>
+                            <th style="padding: var(--space-2);">Prev Hash</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom: 1px solid var(--color-border);">
+                            <td style="padding: var(--space-3);">342</td>
+                            <td style="padding: var(--space-3); color: var(--color-clay);">a7f9b2...84e1</td>
+                            <td style="padding: var(--space-3);">3b9c0f...99d2</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--color-border);">
+                            <td style="padding: var(--space-3);">341</td>
+                            <td style="padding: var(--space-3); color: var(--color-clay);">3b9c0f...99d2</td>
+                            <td style="padding: var(--space-3);">9e88aa...11c4</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: var(--space-3);">340</td>
+                            <td style="padding: var(--space-3); color: var(--color-clay);">9e88aa...11c4</td>
+                            <td style="padding: var(--space-3);">5d32ff...09b1</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+        </div>
+
+        <!-- Alert Setup View -->
+        <div id="view-alert-setup" class="app-view">
+            <div class="page-header">
+                <h1 class="page-title">Alert Setup</h1>
+                <p class="page-subtitle">Configure notification routing.</p>
+            </div>
+            <section class="card" style="max-width: 600px;">
+                <div style="margin-bottom: var(--space-4);">
+                    <label style="display: flex; align-items: center; font-size: 0.875rem;">
+                        <input type="checkbox" checked style="margin-right: var(--space-2);">
+                        Email notifications for CRITICAL events
+                    </label>
+                </div>
+                <div style="margin-bottom: var(--space-4);">
+                    <label style="display: flex; align-items: center; font-size: 0.875rem;">
+                        <input type="checkbox" checked style="margin-right: var(--space-2);">
+                        SMS alerts for Mechanical Faults
+                    </label>
+                </div>
+                <div style="margin-bottom: var(--space-6);">
+                    <label style="display: flex; align-items: center; font-size: 0.875rem;">
+                        <input type="checkbox" style="margin-right: var(--space-2);">
+                        Daily Digest Report
+                    </label>
+                </div>
+                <button class="btn btn-primary">Save Configuration</button>
+            </section>
+        </div>
+
+        <!-- Upload & Inspect View -->
+        <div id="view-upload-inspect" class="app-view">
+            <div class="page-header">
+                <h1 class="page-title">Upload & Inspect</h1>
+                <p class="page-subtitle">Manual media analysis.</p>
+            </div>
+            <section class="card" style="max-width: 600px;">
+                <div style="border: 2px dashed var(--color-border); padding: var(--space-12); text-align: center; border-radius: var(--radius-md); background: var(--color-surface-subtle); margin-bottom: var(--space-6);">
+                    <div style="font-size: 2rem; margin-bottom: var(--space-2);">📁</div>
+                    <div style="font-size: 0.875rem; font-weight: 500;">Drag and drop image/video here</div>
+                    <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-top: var(--space-1);">or click to browse</div>
+                </div>
+                <button class="btn btn-primary" style="width: 100%;">Analyze Media</button>
+            </section>
+        </div>
+
+        <!-- Ask JARVIS View -->
+        <div id="view-ask-jarvis" class="app-view">
+            <div class="page-header">
+                <h1 class="page-title">Ask JARVIS</h1>
+                <p class="page-subtitle">Natural language operational queries.</p>
+            </div>
+            <section class="card" style="max-width: 800px; display: flex; flex-direction: column; height: 500px;">
+                <!-- Chat History -->
+                <div id="chat-history" style="flex: 1; overflow-y: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-4); background: var(--color-bg);">
+                    <div style="margin-bottom: var(--space-4); display: flex;">
+                        <div style="background: var(--color-surface); padding: var(--space-3); border-radius: var(--radius-md); font-size: 0.875rem; max-width: 80%; border: 1px solid var(--color-border);">
+                            <strong>JARVIS:</strong> How can I assist you with facility operations today?
+                        </div>
+                    </div>
+                </div>
+                <!-- Chat Input -->
+                <div style="display: flex; gap: var(--space-2);">
+                    <input type="text" id="chat-input" placeholder="Ask about safety incidents, machine stats, etc..." style="flex: 1; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-size: 0.875rem;">
+                    <button id="btn-chat-send" class="btn btn-primary">Send</button>
+                </div>
+            </section>
+        </div>
+
     </main>
 
     <script src="js/api.js"></script>
@@ -120,6 +428,8 @@
                     <option>OpenAI</option>
                     <option>Anthropic</option>
                     <option>Google</option>
+                    <option>OpenRouter</option>
+                    <option>Nvidia NIM</option>
                 </select>
             </div>
 
