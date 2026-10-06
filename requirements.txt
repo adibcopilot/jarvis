@@ -48,3 +48,4 @@ tqdm                 # Progress bars
 # ── API ──────────────────────────────────────
 fastapi              # API Framework
 uvicorn              # ASGI Server
+python-multipart     # File uploads for Upload & Inspect
