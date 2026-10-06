@@ -42,6 +42,8 @@ def classify_event(event_type: str, detections: Optional[List[Dict]] = None, sou
         return _classify_ppe(detections)
     elif event_type == "temperature":
         return _classify_temperature(extra_data)
+    elif event_type == "simulation":
+        return _classify_simulation(extra_data)
     elif event_type == "conveyor":
         status = extra_data.get("status", "faulted")
         commanded = extra_data.get("commanded", False)
@@ -63,6 +65,122 @@ def classify_event(event_type: str, detections: Optional[List[Dict]] = None, sou
             "reasoning": f"Unknown event type '{event_type}'. Logged for manual review."
         }
 
+
+def _classify_simulation(state: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Multivariate fault classifier for the 12 simulated faults.
+    Returns the diagnosis based on the reported sensor readings.
+    """
+    t_motor = state.get("t_motor", 40.0)
+    c_flow = state.get("c_flow", 100.0)
+    vib = state.get("vib", 1.0)
+    vib_pat = state.get("vib_pat", "nominal")
+    trq = state.get("trq", 50.0)
+    spd_m = state.get("spd_m", 1500.0)
+    spd_b = state.get("spd_b", 1500.0)
+    cur = state.get("cur", 10.0)
+    vol = state.get("vol", 400.0)
+    cur_leak = state.get("cur_leak", 2.0)
+
+    # 12. Signal Dropout
+    if t_motor == 0.0 or vol == 0.0 or cur == 0.0 or spd_m == 0.0:
+        return {
+            "severity": "critical", "category": "technical", "fault": "Signal Dropout",
+            "proposed_action": "Recalibrate/Restart Sensor Module",
+            "reasoning": "One or more critical sensors are reading exactly 0.0 instantly. This indicates a lost sensor connection rather than a true physical stop."
+        }
+
+    # 11. Sensor Drift (Temp) vs 1. Motor Overheating
+    if t_motor >= 120.0:
+        if cur < 15.0 and c_flow >= 80.0 and trq < 60.0:
+            return {
+                "severity": "high", "category": "technical", "fault": "Sensor Drift (Temperature)",
+                "proposed_action": "Recalibrate Temperature Sensor",
+                "reasoning": f"Temperature is reporting Critical ({t_motor:.1f} °C), but Current ({cur:.1f}A) and Coolant ({c_flow:.1f}%) are perfectly normal. True heat ramps gradually with secondary effects. This instant isolated spike indicates the sensor is lying."
+            }
+        elif c_flow < 50.0:
+            return {
+                "severity": "critical", "category": "mechanical", "fault": "Cooling Failure",
+                "proposed_action": "Halt line, check cooling fans/coolant pump.",
+                "reasoning": f"Motor temperature is Critical ({t_motor:.1f} °C) and Coolant Flow is abnormally low ({c_flow:.1f}%). Secondary effects are present."
+            }
+        else:
+            return {
+                "severity": "critical", "category": "mechanical", "fault": "Motor Overheating",
+                "proposed_action": "Halt motor immediately to prevent winding damage.",
+                "reasoning": f"True temperature has ramped to Critical ({t_motor:.1f} °C) with elevated current/load, but cooling is nominal."
+            }
+
+    # 10. Insulation Breakdown
+    if cur_leak > 30.0:
+        return {
+            "severity": "critical", "category": "electrical", "fault": "Insulation Breakdown",
+            "proposed_action": "Emergency Stop. Dispatch electrician to inspect motor windings.",
+            "reasoning": f"Leakage current is dangerously high ({cur_leak:.1f} mA). Risk of electrocution or short circuit."
+        }
+
+    # 9. Voltage Fluctuation
+    if vol < 360.0 or vol > 440.0:
+        return {
+            "severity": "high", "category": "electrical", "fault": "Voltage Fluctuation",
+            "proposed_action": "Switch to backup power or condition line voltage.",
+            "reasoning": f"Supply voltage ({vol:.1f} V) has deviated >10% from nominal 400V."
+        }
+
+    # 5. Mechanical Jam
+    if trq > 150.0 and cur > 50.0 and spd_m < 1000.0:
+        return {
+            "severity": "critical", "category": "mechanical", "fault": "Mechanical Jam",
+            "proposed_action": "Emergency Stop. Clear physical obstruction.",
+            "reasoning": f"Massive torque spike ({trq:.1f} Nm) + current spike ({cur:.1f} A) + speed drop ({spd_m:.1f} RPM). The machine is physically blocked."
+        }
+
+    # 8. Motor Overload
+    if cur > 25.0 and vol >= 380.0 and trq > 80.0:
+        return {
+            "severity": "high", "category": "mechanical", "fault": "Motor Overload",
+            "proposed_action": "Reduce throughput/load on the conveyor.",
+            "reasoning": f"Current ({cur:.1f} A) and Torque ({trq:.1f} Nm) are elevated without a full jam, indicating sustained overload."
+        }
+
+    # 7. Belt Slippage
+    if spd_b < (spd_m * 0.9):
+        return {
+            "severity": "medium", "category": "mechanical", "fault": "Belt Slippage",
+            "proposed_action": "Schedule maintenance to tighten or replace the drive belt.",
+            "reasoning": f"Belt speed ({spd_b:.1f} RPM) is lagging motor speed ({spd_m:.1f} RPM) by >10%."
+        }
+
+    # Disambiguation between Bearing Wear (3) and Lubrication Failure (6)
+    if vib > 5.0 and vib_pat == "harmonic" and t_motor < 70.0:
+        # 3. Bearing Wear
+        return {
+            "severity": "high", "category": "mechanical", "fault": "Bearing Wear",
+            "proposed_action": "Schedule part swap (bearings) pending approval.",
+            "reasoning": f"Vibration is High ({vib:.1f} mm/s) with a harmonic pattern, but without significant friction heat creep. Indicates clean mechanical wear."
+        }
+    
+    if vib > 2.0 and t_motor > 50.0 and trq > 55.0:
+        # 6. Lubrication Failure
+        return {
+            "severity": "medium", "category": "mechanical", "fault": "Lubrication Failure",
+            "proposed_action": "Dispatch technician to apply grease/lubrication.",
+            "reasoning": f"Vibration is elevated ({vib:.1f} mm/s) AND accompanied by friction heat creep ({t_motor:.1f} °C) and slight torque drag."
+        }
+
+    # 4. Shaft Misalignment
+    if vib > 5.0 and vib_pat != "harmonic":
+        return {
+            "severity": "high", "category": "mechanical", "fault": "Shaft Misalignment",
+            "proposed_action": "Halt line and realign the drive shaft.",
+            "reasoning": f"Vibration is High ({vib:.1f} mm/s) with an asymmetric/random pattern, indicating structural misalignment."
+        }
+
+    return {
+        "severity": "nominal", "category": "none", "fault": "Nominal",
+        "proposed_action": "No action required.",
+        "reasoning": "All sensors read within nominal bounds."
+    }
 
 def classify_conveyor_event(status: str, commanded: bool, fault_type: str = "mechanical_jam") -> Optional[Dict[str, str]]:
     """
