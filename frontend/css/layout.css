@@ -3,45 +3,64 @@ body {
     background-color: var(--color-bg);
     color: var(--color-text);
     font-family: var(--font-body);
+    min-height: 100vh;
+    overflow-x: hidden;
 }
 
 .app-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: var(--space-6);
     padding: var(--space-4) var(--page-margin);
     border-bottom: 1px solid var(--color-border);
     background-color: var(--color-surface);
 }
 
+/* Brand must never be squeezed by the (long) nav: fixed size, no wrapping. */
 .header-brand {
     display: flex;
     align-items: baseline;
-    gap: var(--space-4);
+    gap: var(--space-3);
+    flex: 0 0 auto;
+    white-space: nowrap;
 }
 
 .header-logo {
     font-family: var(--font-display);
     font-size: 1.5rem;
+    line-height: 1;
     font-weight: bold;
-    color: var(--color-text);
+    color: var(--brand-accent);
 }
 
 .header-descriptor {
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
+    line-height: 1;
     color: var(--color-text-secondary);
+    letter-spacing: 0.01em;
 }
 
+/* Nav takes the remaining width. Links never break mid-word; when there is not
+   enough room the whole link moves to a second right-aligned row. */
 .header-nav {
     display: flex;
-    gap: var(--space-6);
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    column-gap: var(--space-4);
+    row-gap: var(--space-2);
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .nav-link {
-    font-size: 0.9375rem;
+    font-size: 0.875rem;
     font-weight: 500;
     color: var(--color-text-secondary);
     padding-bottom: var(--space-1);
+    white-space: nowrap;
+    flex: 0 0 auto;
     transition: color 0.2s ease;
 }
 
@@ -60,28 +79,72 @@ body {
     display: flex;
     align-items: center;
     gap: var(--space-2);
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+.theme-toggle {
+    display: inline-grid;
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
+    place-items: center;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-pill);
+    background: var(--color-surface-subtle);
+    color: var(--color-text);
+    cursor: pointer;
+}
+
+.theme-toggle:hover {
+    border-color: var(--color-text-secondary);
+    color: var(--soft-white);
+}
+
+.theme-icon {
+    grid-area: 1 / 1;
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.theme-icon-moon,
+html[data-theme="day"] .theme-icon-sun {
+    visibility: hidden;
+}
+
+html[data-theme="day"] .theme-icon-moon {
+    visibility: visible;
 }
 
 .page-container {
+    width: 100%;
+    min-width: 0;
     max-width: var(--content-max-width);
     margin: 0 auto;
-    padding: var(--space-8) var(--page-margin);
+    padding: var(--space-10) var(--page-margin) var(--space-16);
 }
 
 .page-header {
-    margin-bottom: var(--space-12);
+    margin-bottom: var(--space-8);
+    padding-bottom: var(--space-4);
+    border-bottom: 1px solid var(--color-border);
 }
 
 .page-title {
     font-family: var(--font-display);
-    font-size: 2.5rem;
-    font-weight: 400;
-    color: var(--color-text);
-    margin-bottom: var(--space-2);
+    font-size: clamp(1.55rem, 2.2vw, 2rem);
+    line-height: 1.2;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--soft-white);
+    margin-bottom: var(--space-1);
 }
 
 .page-subtitle {
-    font-size: 1.125rem;
+    max-width: 760px;
+    font-size: 0.875rem;
+    line-height: 1.6;
     color: var(--color-text-secondary);
 }
 
@@ -99,4 +162,54 @@ body {
 
 @media (max-width: 1024px) {
     .col-8, .col-6, .col-4 { grid-column: span 12; }
+
+    .page-container {
+        padding-top: var(--space-8);
+    }
+}
+
+@media (max-width: 720px) {
+    .app-header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: var(--space-3);
+        padding: var(--space-4);
+    }
+
+    .header-brand {
+        grid-column: 1;
+        min-width: 0;
+    }
+
+    .header-descriptor {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .header-user {
+        grid-column: 2;
+    }
+
+    .header-nav {
+        grid-column: 1 / -1;
+        width: 100%;
+        max-width: calc(100vw - (2 * var(--space-4)));
+        flex-wrap: nowrap;
+        justify-content: flex-start;
+        overflow-x: auto;
+        padding-bottom: var(--space-1);
+        scrollbar-width: thin;
+    }
+
+    .page-container {
+        padding: var(--space-6) var(--space-4) var(--space-12);
+    }
+
+    .page-header {
+        margin-bottom: var(--space-6);
+    }
+
+    .page-title {
+        font-size: 1.35rem;
+    }
 }
