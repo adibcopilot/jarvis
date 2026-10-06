@@ -8,19 +8,30 @@ This is the rule-engine version; LLM-assisted reasoning is planned for Phase 8.
 
 from typing import Dict, Any, List, Optional
 
+from agent.routing import (
+    classify_temperature_band,
+    format_band_range,
+    recipients_for_severity,
+    severity_for_temperature,
+    severity_rank,
+)
+
 
 def classify_event(event_type: str, detections: Optional[List[Dict]] = None, source_file: str = "", extra_data: Optional[Dict] = None) -> Dict[str, str]:
     """
     Rule-based event classification.
     
     Args:
-        event_type: "ppe", "fire", or "conveyor"
+        event_type: "ppe", "fire", "conveyor", or "temperature"
         detections: list of detection dicts from PPEDetector or FireSmokeDetector
         source_file: filename or identifier that triggered the detection
-        extra_data: optional dictionary containing additional context (e.g., fault_type, commanded flag)
+        extra_data: optional dictionary containing additional context
+                    (e.g., fault_type / commanded flag for conveyor;
+                     temperature_c / previous_c / zone for temperature)
     
     Returns:
         dict with keys: severity, category, proposed_action, reasoning
+        (the "temperature" branch adds routing fields — see _classify_temperature)
     """
     detections = detections or []
     extra_data = extra_data or {}
@@ -29,6 +40,8 @@ def classify_event(event_type: str, detections: Optional[List[Dict]] = None, sou
         return _classify_fire(detections)
     elif event_type == "ppe":
         return _classify_ppe(detections)
+    elif event_type == "temperature":
+        return _classify_temperature(extra_data)
     elif event_type == "conveyor":
         status = extra_data.get("status", "faulted")
         commanded = extra_data.get("commanded", False)
@@ -74,6 +87,99 @@ def classify_conveyor_event(status: str, commanded: bool, fault_type: str = "mec
             ),
         }
     return None
+
+
+def _classify_temperature(extra_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Classify a simulated temperature reading against the bands in agent/routing.py.
+
+    This is the reasoning step of the autonomous temperature path. Unlike the
+    PPE / fire / conveyor branches, its output is NOT queued for approval — the
+    caller (agent/autonomous.py) dispatches the notifications directly. This
+    function only decides; it does not send anything or write to the database.
+
+    extra_data keys:
+        temperature_c : float  — current simulated value (required)
+        previous_c    : float  — value before this change (optional)
+        zone          : str    — label for the machine's zone (optional)
+
+    Returns the usual {severity, category, proposed_action, reasoning} plus:
+        recipient_roles   : list of {role, label, env_var} from the routing table
+        band              : the matched band dict
+        previous_severity : band of previous_c ('nominal' if unknown)
+        transition        : "none" | "onset" | "escalation" | "de-escalation" | "recovery"
+
+    severity == "nominal" means "inside normal range, no event should be logged".
+    """
+    if "temperature_c" not in extra_data:
+        raise ValueError("temperature classification requires extra_data['temperature_c']")
+
+    temp_c = float(extra_data["temperature_c"])
+    previous_c = extra_data.get("previous_c")
+    zone = extra_data.get("zone") or "Zone 01"
+
+    band = classify_temperature_band(temp_c)
+    severity = band["severity"]
+    previous_severity = (
+        severity_for_temperature(previous_c) if previous_c is not None else "nominal"
+    )
+
+    # Describe the band change so the audit trail states *why* this fired now.
+    if severity == previous_severity:
+        transition = "none"
+    elif severity == "nominal":
+        transition = "recovery"
+    elif previous_severity == "nominal":
+        transition = "onset"
+    elif severity_rank(severity) > severity_rank(previous_severity):
+        transition = "escalation"
+    else:
+        transition = "de-escalation"
+
+    prev_text = f"{float(previous_c):.1f} °C ('{previous_severity}')" if previous_c is not None else "unknown"
+    band_range = format_band_range(band)
+
+    if severity == "nominal":
+        return {
+            "severity": "nominal",
+            "category": "mechanical",
+            "proposed_action": "No action. Simulated temperature is within the normal operating range.",
+            "reasoning": (
+                f"Simulated temperature {temp_c:.1f} °C is in the nominal band ({band_range}); "
+                f"previous reading {prev_text}. No notification is routed for 'nominal'."
+            ),
+            "recipient_roles": [],
+            "band": band,
+            "previous_severity": previous_severity,
+            "transition": transition,
+        }
+
+    recipient_roles = recipients_for_severity(severity)
+    labels = [r["label"] for r in recipient_roles]
+
+    proposed_action = (
+        f"Automatically notify {', '.join(labels)} of a {severity.upper()} temperature reading "
+        f"on Processing Machine 01 ({zone}): {temp_c:.1f} °C (simulated). "
+        "Dispatched by the rule-based reasoning agent under the temperature escalation policy — "
+        "no human approval step on this path."
+    )
+    reasoning = (
+        f"Simulated temperature {temp_c:.1f} °C falls in the '{severity}' band ({band_range}); "
+        f"previous reading {prev_text}; transition = {transition}. "
+        f"Routing table (agent/routing.py) maps '{severity}' -> {labels}. "
+        f"Band note: {band['description']}"
+    )
+
+    return {
+        "severity": severity,
+        "category": "mechanical",
+        "proposed_action": proposed_action,
+        "reasoning": reasoning,
+        "recipient_roles": recipient_roles,
+        "band": band,
+        "previous_severity": previous_severity,
+        "transition": transition,
+    }
 
 
 def _classify_fire(detections: List[Dict]) -> Dict[str, str]:
