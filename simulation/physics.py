@@ -1,6 +1,12 @@
 import asyncio
 import random
 from typing import Dict, Any
+from datetime import datetime
+
+from agent.reasoner import classify_event
+from guardrails.validator import validate_action
+from database.db import insert_event
+from alerts.email import AUTO_DISPATCHED_STATUS
 
 # Initial / nominal state for all sensors
 NOMINAL_STATE = {
@@ -42,6 +48,7 @@ class SimulationEngine:
         self.corruptions: Dict[str, Dict[str, Any]] = {}
         
         self.is_running = False
+        self.last_diagnosis_fault = "Nominal"
 
     def apply_user_override(self, sensor: str, value: float):
         if value is None:
@@ -129,6 +136,66 @@ class SimulationEngine:
         self.is_running = True
         while self.is_running:
             self.tick()
+            
+            # Integration with Reasoner & Guardrails
+            readings = self.get_readings()
+            decision = classify_event("simulation", extra_data=readings)
+            current_fault = decision.get("fault", "Nominal")
+            
+            # Only log if the diagnosis has changed (threshold crossing / new fault)
+            if current_fault != self.last_diagnosis_fault:
+                self._log_event(readings, decision, current_fault)
+                self.last_diagnosis_fault = current_fault
+                
             await asyncio.sleep(1.0)
+            
+    def _log_event(self, readings: Dict[str, Any], decision: Dict[str, Any], current_fault: str):
+        if current_fault == "Nominal":
+            return # Don't log recovery yet to save spam, or log a simple recovery event
+            
+        severity = decision.get("severity", "low")
+        category = decision.get("category", "technical")
+        
+        observation = {
+            "label": "simulation_sample",
+            "confidence": 1.0,
+            "readings": readings,
+            "source": "physics_engine"
+        }
+        
+        decision_record = {
+            "label": "autonomous_decision",
+            "confidence": 1.0,
+            "fault": current_fault,
+            "reasoning": decision.get("reasoning", "")
+        }
+        
+        # Check guardrails
+        # If it's a technical sensor issue, it might auto-resolve. 
+        # If it's mechanical/electrical, it needs approval.
+        requires_approval = (category in ["mechanical", "electrical"])
+        
+        if requires_approval:
+            insert_event(
+                event_type="simulation",
+                source_file="Interactive Simulation",
+                detections=[observation, decision_record],
+                severity=severity,
+                category=category,
+                proposed_action=decision.get("proposed_action", ""),
+                approval_status="pending"
+            )
+        else:
+            insert_event(
+                event_type="simulation",
+                source_file="Interactive Simulation",
+                detections=[observation, decision_record],
+                severity=severity,
+                category=category,
+                proposed_action=decision.get("proposed_action", ""),
+                approval_status=AUTO_DISPATCHED_STATUS,
+                approved_by="autonomous: simulation_policy",
+                resolved_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            )
             
 physics_engine = SimulationEngine()
