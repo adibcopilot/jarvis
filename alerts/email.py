@@ -1,3 +1,4 @@
+
 """
 alerts/email.py
 Gmail SMTP implementation for sending JARVIS incident alerts.
