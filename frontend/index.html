@@ -3,12 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
     <title>JARVIS | Live Dashboard</title>
-    
-    <link rel="stylesheet" href="css/reset.css">
-    <link rel="stylesheet" href="css/tokens.css">
-    <link rel="stylesheet" href="css/layout.css">
-    <link rel="stylesheet" href="css/components.css">
+
+    <script>
+        (() => {
+            let theme = "night";
+            try {
+                if (localStorage.getItem("jarvis-theme") === "day") theme = "day";
+            } catch (_) {
+                // Theme persistence is optional; night remains the safe default.
+            }
+            document.documentElement.dataset.theme = theme;
+        })();
+    </script>
+
+    <link rel="stylesheet" href="css/reset.css?v=theme1">
+    <link rel="stylesheet" href="css/tokens.css?v=theme1">
+    <link rel="stylesheet" href="css/layout.css?v=theme1">
+    <link rel="stylesheet" href="css/components.css?v=theme1">
     
     <style>
         .text-critical { color: var(--status-critical); }
@@ -39,6 +53,10 @@
             <a href="#" class="nav-link api-indicator" id="nav-ai-config">API</a>
         </nav>
         <div class="header-user">
+            <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Switch to day theme" title="Switch to day theme">
+                <span class="theme-icon theme-icon-sun" aria-hidden="true">☀</span>
+                <span class="theme-icon theme-icon-moon" aria-hidden="true">☾</span>
+            </button>
             <span>Admin</span>
         </div>
     </header>
@@ -116,7 +134,54 @@
                 <h1 class="page-title">Trigger Console</h1>
                 <p class="page-subtitle">Simulate real-time operational events.</p>
             </div>
+            <section class="card" style="max-width: 760px; margin-bottom: var(--space-8);">
+                <h2 class="card-title">Simulated machine temperature</h2>
+                <p class="temp-help">
+                    This slider is the only input. There is no sensor and no hardware.
+                    Crossing a severity band fires one rule-based reasoning agent: it classifies
+                    the reading, selects recipients from the table below, emails each role, and
+                    writes the event plus every dispatch outcome to the audit log.
+                    No approval click on this path. PPE and fire events still wait in Pending Actions.
+                </p>
+                <div class="temp-readout">
+                    <div>
+                        <div class="summary-label">Current (simulated)</div>
+                        <div id="temp-current-value" class="summary-value">— °C</div>
+                    </div>
+                    <div>
+                        <div class="summary-label">Band</div>
+                        <div id="temp-current-band"><span class="badge badge-neutral">—</span></div>
+                    </div>
+                    <div>
+                        <div class="summary-label">Last decision</div>
+                        <div id="temp-last-decision" style="font-size:0.875rem; color:var(--color-text-secondary);">Slider not moved yet.</div>
+                    </div>
+                </div>
+                <label for="temp-slider" class="temp-slider-label">Simulated temperature (°C) — operator-set, no sensor</label>
+                <div class="temp-slider-row">
+                    <span id="temp-slider-min">20</span>
+                    <input type="range" id="temp-slider" min="20" max="150" step="1" value="45">
+                    <span id="temp-slider-max">150</span>
+                </div>
+                <div id="temp-chart" class="temp-chart" aria-label="Simulated temperature over time"></div>
+                <p class="temp-help" style="margin-top: var(--space-2);">Live line chart of slider changes. A flat line means the slider was not moved. Dashed lines are the configured band thresholds.</p>
+                <div id="temp-dispatch" class="temp-dispatch" hidden></div>
+                <h3 class="card-title" style="margin-top: var(--space-8);">Severity → recipients (from agent/routing.py)</h3>
+                <table class="temp-routing-table">
+                    <thead>
+                        <tr>
+                            <th>Severity</th>
+                            <th>Simulated band</th>
+                            <th>Recipients notified automatically</th>
+                        </tr>
+                    </thead>
+                    <tbody id="temp-routing-body">
+                        <tr><td colspan="3">Loading routing table…</td></tr>
+                    </tbody>
+                </table>
+            </section>
             <section class="card" style="max-width: 600px;">
+                <h2 class="card-title">Manual simulation event (approval required)</h2>
                 <div style="margin-bottom: var(--space-4);">
                     <label style="display:block; font-size:0.875rem; margin-bottom:var(--space-2);">Event Type</label>
                     <select id="trigger-event-type" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:var(--radius-sm);">
@@ -184,7 +249,7 @@
         <div id="view-worker-records" class="app-view">
             <div class="page-header">
                 <h1 class="page-title">Worker Records</h1>
-                <p class="page-subtitle">Historical safety compliance records.</p>
+                <p class="page-subtitle">Historical safety compliance records. Ask JARVIS about any worker to hear what they have done.</p>
             </div>
             <section class="card">
                 <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
@@ -192,35 +257,20 @@
                         <tr style="border-bottom: 1px solid var(--color-border); text-align: left; color: var(--color-text-secondary);">
                             <th style="padding: var(--space-2);">Worker ID</th>
                             <th style="padding: var(--space-2);">Name</th>
-                            <th style="padding: var(--space-2);">Total Incidents</th>
-                            <th style="padding: var(--space-2);">Last Incident Date</th>
+                            <th style="padding: var(--space-2);">Role / Zone</th>
+                            <th style="padding: var(--space-2);">Incidents</th>
+                            <th style="padding: var(--space-2);">Last Incident</th>
                             <th style="padding: var(--space-2);">Status</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <tr style="border-bottom: 1px solid var(--color-border);">
-                            <td style="padding: var(--space-3);">W-8472</td>
-                            <td style="padding: var(--space-3); font-weight: 500;">Miller, S.</td>
-                            <td style="padding: var(--space-3);">3</td>
-                            <td style="padding: var(--space-3);">2024-05-12</td>
-                            <td style="padding: var(--space-3);"><span class="badge badge-warning">Probation</span></td>
-                        </tr>
-                        <tr style="border-bottom: 1px solid var(--color-border);">
-                            <td style="padding: var(--space-3);">W-9211</td>
-                            <td style="padding: var(--space-3); font-weight: 500;">Davis, J.</td>
-                            <td style="padding: var(--space-3);">0</td>
-                            <td style="padding: var(--space-3);">-</td>
-                            <td style="padding: var(--space-3);"><span class="badge badge-success">Clear</span></td>
-                        </tr>
-                        <tr>
-                            <td style="padding: var(--space-3);">W-1044</td>
-                            <td style="padding: var(--space-3); font-weight: 500;">Lopez, M.</td>
-                            <td style="padding: var(--space-3);">1</td>
-                            <td style="padding: var(--space-3);">2024-06-01</td>
-                            <td style="padding: var(--space-3);"><span class="badge badge-success">Clear</span></td>
-                        </tr>
+                    <tbody id="worker-records-body">
+                        <tr><td colspan="6" style="padding: var(--space-3); color: var(--color-text-secondary);">Loading worker records...</td></tr>
                     </tbody>
                 </table>
+            </section>
+            <section class="card" id="worker-detail-card" style="display: none;">
+                <h2 class="card-title">Worker History</h2>
+                <div id="worker-detail-body" style="font-size: 0.875rem; line-height: 1.6;"></div>
             </section>
         </div>
 
@@ -261,24 +311,43 @@
         <div id="view-risk-trends" class="app-view">
             <div class="page-header">
                 <h1 class="page-title">Risk Trends</h1>
-                <p class="page-subtitle">Aggregated facility risk analytics.</p>
+                <p class="page-subtitle">Aggregated facility risk analytics and 7-day incident distribution.</p>
             </div>
             <div style="display: flex; gap: var(--space-6); margin-bottom: var(--space-6);">
                 <div class="card" style="flex: 1;">
                     <div style="font-size: 0.75rem; color: var(--color-text-secondary); text-transform: uppercase;">PPE Violations (30d)</div>
-                    <div style="font-size: 2rem; font-family: var(--font-display); color: var(--status-warning);">+12%</div>
+                    <div id="trends-stat-ppe" style="font-size: 2rem; font-family: var(--font-display); color: var(--status-warning);">+12%</div>
                 </div>
                 <div class="card" style="flex: 1;">
                     <div style="font-size: 0.75rem; color: var(--color-text-secondary); text-transform: uppercase;">Mechanical Faults (30d)</div>
-                    <div style="font-size: 2rem; font-family: var(--font-display); color: var(--status-success);">-5%</div>
+                    <div id="trends-stat-mechanical" style="font-size: 2rem; font-family: var(--font-display); color: var(--status-success);">-5%</div>
                 </div>
                 <div class="card" style="flex: 1;">
                     <div style="font-size: 0.75rem; color: var(--color-text-secondary); text-transform: uppercase;">Avg Resolution Time</div>
-                    <div style="font-size: 2rem; font-family: var(--font-display); color: var(--color-text);">4.2m</div>
+                    <div id="trends-stat-resolution" style="font-size: 2rem; font-family: var(--font-display); color: var(--color-text);">4.2m</div>
                 </div>
             </div>
+            <section class="card" style="margin-bottom: var(--space-6);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); flex-wrap: wrap; gap: 8px;">
+                    <h2 class="card-title" style="margin: 0;">7-DAY FACILITY INCIDENT DISTRIBUTION</h2>
+                    <div style="display: flex; gap: var(--space-4); font-size: 0.75rem;">
+                        <span style="display: flex; align-items: center; gap: 4px;"><span style="display: inline-block; width: 10px; height: 10px; background: var(--signal-amber); border-radius: 2px;"></span> Safety / PPE</span>
+                        <span style="display: flex; align-items: center; gap: 4px;"><span style="display: inline-block; width: 10px; height: 10px; background: var(--mist); border-radius: 2px;"></span> Mechanical Faults</span>
+                        <span style="display: flex; align-items: center; gap: 4px;"><span style="display: inline-block; width: 10px; height: 10px; background: var(--signal-red); border-radius: 2px;"></span> Fire & Smoke</span>
+                    </div>
+                </div>
+                <div id="trends-chart-container" style="width: 100%; min-height: 220px; position: relative; padding: var(--space-2) 0;">
+                    <!-- Populated dynamically with SVG Chart -->
+                </div>
+            </section>
             <section class="card">
-                <p style="color: var(--color-text-secondary); text-align: center; padding: var(--space-12);">[ Chart Visualization Placeholder ]</p>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4);">
+                    <h2 class="card-title" style="margin: 0;">RECENT EMAIL ESCALATIONS (AUDIT LOG)</h2>
+                    <span style="font-size: 0.75rem; color: var(--color-text-muted);">GMAIL SMTP</span>
+                </div>
+                <div id="trends-email-audit-list">
+                    <p style="color: var(--color-text-secondary); font-size: 0.875rem;">Loading escalation audit trail...</p>
+                </div>
             </section>
         </div>
 
@@ -367,22 +436,112 @@
                     </label>
                 </div>
                 <button class="btn btn-primary">Save Configuration</button>
-            </section>
-        </div>
-
-        <!-- Upload & Inspect View -->
+                   <!-- Upload & Inspect View -->
         <div id="view-upload-inspect" class="app-view">
             <div class="page-header">
-                <h1 class="page-title">Upload & Inspect</h1>
-                <p class="page-subtitle">Manual media analysis.</p>
+                <h1 class="page-title">Upload &amp; Inspect</h1>
+                <p class="page-subtitle">Upload an image/video or use your webcam for live PPE and fire/smoke detection.</p>
             </div>
-            <section class="card" style="max-width: 600px;">
-                <div style="border: 2px dashed var(--color-border); padding: var(--space-12); text-align: center; border-radius: var(--radius-md); background: var(--color-surface-subtle); margin-bottom: var(--space-6);">
-                    <div style="font-size: 2rem; margin-bottom: var(--space-2);">📁</div>
-                    <div style="font-size: 0.875rem; font-weight: 500;">Drag and drop image/video here</div>
-                    <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-top: var(--space-1);">or click to browse</div>
+            <section class="card" style="max-width: 760px;">
+                <p style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-text-muted); margin: 0 0 10px;">1. Inspection type</p>
+                <div id="inspect-type-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px;">
+                    <label class="inspect-option is-active" style="display:flex; align-items:flex-start; gap:10px; padding:14px 16px; border:2px solid var(--color-clay); border-radius:10px; background: var(--color-clay-soft); cursor:pointer;">
+                        <input type="radio" name="inspect-type" value="ppe" checked style="margin-top:4px; width:18px; height:18px;">
+                        <span>
+                            <strong style="display:block;">PPE Compliance</strong>
+                            <span style="font-size:0.8rem; color:var(--color-text-secondary);">Helmet, vest, gloves, boots, goggles</span>
+                        </span>
+                    </label>
+                    <label class="inspect-option" style="display:flex; align-items:flex-start; gap:10px; padding:14px 16px; border:2px solid var(--color-border); border-radius:10px; background: var(--color-surface); cursor:pointer;">
+                        <input type="radio" name="inspect-type" value="fire" style="margin-top:4px; width:18px; height:18px;">
+                        <span>
+                            <strong style="display:block;">Fire &amp; Smoke</strong>
+                            <span style="font-size:0.8rem; color:var(--color-text-secondary);">Fire outbreak and smoke hazard</span>
+                        </span>
+                    </label>
                 </div>
-                <button class="btn btn-primary" style="width: 100%;">Analyze Media</button>
+
+                <!-- Input Mode Tabs -->
+                <div id="inspect-mode-tabs" style="display:flex; gap:0; margin-bottom:20px; border:1px solid var(--color-border); border-radius:8px; overflow:hidden;">
+                    <button id="tab-upload" class="inspect-tab inspect-tab-active" style="flex:1; padding:10px; border:none; cursor:pointer; font-size:0.875rem; font-weight:500; background:var(--color-clay); color:#fff; transition:all 0.2s;">
+                        📁 Upload File
+                    </button>
+                    <button id="tab-webcam" class="inspect-tab" style="flex:1; padding:10px; border:none; cursor:pointer; font-size:0.875rem; font-weight:500; background:var(--color-surface); color:var(--color-text-secondary); transition:all 0.2s;">
+                        📷 Webcam Capture
+                    </button>
+                </div>
+
+                <!-- Upload Panel -->
+                <div id="panel-upload">
+                    <p style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-text-muted); margin: 0 0 10px;">2. Upload image or video</p>
+                    <div id="inspect-dropzone" class="inspect-dropzone">
+                        <div style="font-size: 2rem; margin-bottom: 8px;">📁</div>
+                        <div id="inspect-file-label" style="font-size: 0.875rem; font-weight: 500; margin-bottom: 12px;">Choose a fire or PPE photo, then click Analyze</div>
+                        <input type="file" id="inspect-file" accept=".jpg,.jpeg,.png,.webp,.gif,.mp4,.avi,.mov,.mkv,image/*,video/*" style="display:block; width:100%; max-width:420px; margin: 0 auto 12px; padding: 8px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 6px;">
+                        <button type="button" id="btn-browse-inspect" class="btn btn-secondary">Browse files</button>
+                    </div>
+                    <div id="inspect-preview" style="display:none; margin-bottom: 16px;"></div>
+                    <button type="button" id="btn-inspect" class="btn btn-primary" style="width: 100%; margin-top:12px;">Analyze Media</button>
+                    <div style="display:flex; gap:8px; margin-top:12px;">
+                        <button type="button" id="btn-demo-ppe" class="btn btn-secondary" style="flex:1;">Run sample PPE</button>
+                        <button type="button" id="btn-demo-fire" class="btn btn-secondary" style="flex:1;">Run sample fire</button>
+                    </div>
+                    <p style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: 12px;">SOFTWARE SIMULATION — pick <strong>PPE</strong> or <strong>Fire</strong>, upload a file, or use a sample. The result is logged for approval.</p>
+                </div>
+
+                <!-- Webcam Panel -->
+                <div id="panel-webcam" style="display:none;">
+                    <p style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-text-muted); margin: 0 0 10px;">2. Live webcam feed</p>
+
+                    <!-- Camera feed container -->
+                    <div style="position:relative; border-radius:10px; overflow:hidden; background:#000; margin-bottom:12px; aspect-ratio:16/9; max-height:340px;">
+                        <video id="webcam-video" autoplay playsinline muted style="width:100%; height:100%; object-fit:cover; display:block;"></video>
+                        <canvas id="webcam-canvas" style="display:none;"></canvas>
+
+                        <!-- Live scanning overlay -->
+                        <div id="webcam-scan-overlay" style="display:none; position:absolute; inset:0; pointer-events:none;">
+                            <div style="position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg, transparent, var(--color-clay), transparent); animation: scan-line 2s linear infinite;"></div>
+                            <div style="position:absolute; top:8px; left:8px; width:20px; height:20px; border-top:2px solid var(--color-clay); border-left:2px solid var(--color-clay);"></div>
+                            <div style="position:absolute; top:8px; right:8px; width:20px; height:20px; border-top:2px solid var(--color-clay); border-right:2px solid var(--color-clay);"></div>
+                            <div style="position:absolute; bottom:8px; left:8px; width:20px; height:20px; border-bottom:2px solid var(--color-clay); border-left:2px solid var(--color-clay);"></div>
+                            <div style="position:absolute; bottom:8px; right:8px; width:20px; height:20px; border-bottom:2px solid var(--color-clay); border-right:2px solid var(--color-clay);"></div>
+                            <div style="position:absolute; bottom:8px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.6); color:#fff; font-size:0.7rem; padding:3px 10px; border-radius:20px; letter-spacing:0.1em;">JARVIS SCANNING</div>
+                        </div>
+
+                        <!-- Idle placeholder -->
+                        <div id="webcam-placeholder" style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#aaa;">
+                            <div style="font-size:3.5rem; margin-bottom:8px;">📷</div>
+                            <div style="font-size:0.875rem;">Camera not started</div>
+                        </div>
+                    </div>
+
+                    <!-- Captured snapshot preview -->
+                    <div id="webcam-snapshot-row" style="display:none; margin-bottom:12px;">
+                        <p style="font-size:0.75rem; color:var(--color-text-muted); margin:0 0 6px; text-transform:uppercase; letter-spacing:0.05em;">Captured frame (will be sent for inspection)</p>
+                        <img id="webcam-snapshot-img" src="" alt="Captured frame" style="max-width:100%; max-height:200px; border-radius:8px; border:1px solid var(--color-border);">
+                    </div>
+
+                    <!-- Camera controls -->
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+                        <button id="btn-webcam-start" class="btn btn-secondary">▶ Start Camera</button>
+                        <button id="btn-webcam-stop" class="btn btn-secondary" disabled>■ Stop Camera</button>
+                    </div>
+                    <button id="btn-webcam-capture" class="btn btn-secondary" style="width:100%; margin-bottom:10px;" disabled>📸 Capture Frame</button>
+                    <button id="btn-webcam-analyze" class="btn btn-primary" style="width:100%;" disabled>🔍 Analyze Captured Frame</button>
+
+                    <p style="font-size: 0.75rem; color: var(--color-text-muted); margin-top:12px;">SOFTWARE SIMULATION — capture a frame from your webcam, then run PPE or fire inspection. Result is logged for approval.</p>
+                </div>
+            </section>
+
+            <!-- Scan animation keyframes -->
+            <style>
+                @keyframes scan-line { from { top: 0; } to { top: 100%; } }
+            </style>
+
+            <section class="card" id="inspect-result-card" style="max-width: 760px; display: none;">
+                <h2 class="card-title">Inspection Result</h2>
+                <div id="inspect-result"></div>
+            </section>
             </section>
         </div>
 
@@ -390,29 +549,44 @@
         <div id="view-ask-jarvis" class="app-view">
             <div class="page-header">
                 <h1 class="page-title">Ask JARVIS</h1>
-                <p class="page-subtitle">Natural language operational queries.</p>
+                <p class="page-subtitle">Interactive AI conversational interface with active safety guardrail verification.</p>
             </div>
-            <section class="card" style="max-width: 800px; display: flex; flex-direction: column; height: 500px;">
+            <section class="card" style="max-width: 900px; display: flex; flex-direction: column; height: 560px;">
                 <!-- Chat History -->
-                <div id="chat-history" style="flex: 1; overflow-y: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-4); background: var(--color-bg);">
+                <div id="chat-history" style="flex: 1; overflow-y: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-3); background: var(--color-bg);">
                     <div style="margin-bottom: var(--space-4); display: flex;">
-                        <div style="background: var(--color-surface); padding: var(--space-3); border-radius: var(--radius-md); font-size: 0.875rem; max-width: 80%; border: 1px solid var(--color-border);">
-                            <strong>JARVIS:</strong> How can I assist you with facility operations today?
+                        <div style="background: var(--color-surface); padding: var(--space-3); border-radius: var(--radius-md); font-size: 0.875rem; max-width: 85%; border: 1px solid var(--color-border); line-height: 1.5;">
+                            <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                                <span class="badge badge-normal" style="font-size:0.7rem;">GUARDRAIL: ACTIVE</span>
+                                <span style="font-size:0.75rem; color:var(--color-muted);">JARVIS Assistant</span>
+                            </div>
+                            <strong>JARVIS:</strong> Hello Supervisor. I can answer from live <strong>worker records</strong> and the event log (PPE, fire, conveyor), plus project and guardrail questions. Try asking what a worker has done.
                         </div>
                     </div>
                 </div>
+
+                <!-- Quick Suggestion Chips -->
+                <div id="chat-suggestions" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: var(--space-3);">
+                    <button class="btn btn-secondary chip-btn" style="font-size: 0.75rem; padding: 4px 10px;" data-prompt="What has worker Sarah Miller done?">Sarah Miller record</button>
+                    <button class="btn btn-secondary chip-btn" style="font-size: 0.75rem; padding: 4px 10px;" data-prompt="Show worker records">Worker roster</button>
+                    <button class="btn btn-secondary chip-btn" style="font-size: 0.75rem; padding: 4px 10px;" data-prompt="Show PPE records">PPE records</button>
+                    <button class="btn btn-secondary chip-btn" style="font-size: 0.75rem; padding: 4px 10px;" data-prompt="Show fire records">Fire records</button>
+                    <button class="btn btn-secondary chip-btn" style="font-size: 0.75rem; padding: 4px 10px;" data-prompt="What is JARVIS and what does it provide?">What is JARVIS?</button>
+                    <button class="btn btn-secondary chip-btn" style="font-size: 0.75rem; padding: 4px 10px;" data-prompt="Who created this project? Tell me about Group 12.">Project Team</button>
+                </div>
+
                 <!-- Chat Input -->
                 <div style="display: flex; gap: var(--space-2);">
-                    <input type="text" id="chat-input" placeholder="Ask about safety incidents, machine stats, etc..." style="flex: 1; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-size: 0.875rem;">
-                    <button id="btn-chat-send" class="btn btn-primary">Send</button>
+                    <input type="text" id="chat-input" placeholder="Ask about a worker (e.g. Sarah Miller), PPE/fire records, or the JARVIS project..." style="flex: 1; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-size: 0.875rem;">
+                    <button id="btn-chat-send" class="btn btn-primary" style="padding: 0 20px;">Send</button>
                 </div>
             </section>
         </div>
 
     </main>
 
-    <script src="js/api.js"></script>
-    <script src="js/app.js"></script>
+    <script src="js/api.js?v=cam3"></script>
+    <script src="js/app.js?v=cam3"></script>
 
     <!-- AI Configuration Modal -->
     <div id="ai-modal" class="modal-overlay" style="display:none;">
