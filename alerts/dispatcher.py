@@ -9,7 +9,7 @@ from database.db import get_event_by_id, log_email_notification
 from .email import send_email_via_smtp, get_smtp_config
 
 # Permitted roles for initiating manager alert dispatches
-AUTHORIZED_ALERT_ROLES = {"supervisor", "manager", "admin"}
+AUTHORIZED_ALERT_ROLES = {"supervisor", "manager", "admin", "system"}
 
 
 def check_alert_permission(role: Optional[str]) -> bool:
