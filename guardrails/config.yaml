@@ -25,6 +25,10 @@ actions:
   system_explanation: allowed
   query_events: allowed
   simulated_equipment_control: approval_required
+  sensor_fixes: allowed
+  software_fixes: allowed
+  mechanical_fixes: approval_required
+  electrical_fixes: approval_required
   physical_hardware_control: prohibited
   bypass_human_approval: prohibited
   delete_audit_trail: prohibited
