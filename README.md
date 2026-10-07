@@ -149,27 +149,29 @@ The web frontend operates as a client-side Single Page Application (SPA) driven 
 
 1. **Floor View (`#floor-view`):**  
    The primary operational command center. Displays overall system health, active alert counts, pending approval tallies, an interactive 2D facility topology map with live machine telemetry (Primary Conveyor, Assembly Arm, Packaging Station), and active safety guardrail policies.
-2. **Trigger Console (`#trigger-console`):**  
-   Testing and simulation cockpit. Enables operators to inject simulated incidents (Missing Helmet, Fire Outbreak, Conveyor Mechanical Jam) to test the end-to-end response pipeline in real time.
-3. **Reasoning Trail (`#reasoning-trail`):**  
+2. **Simulation View (`#simulation`):**  
+   The fully interactive 12-sensor mechanical testing cockpit. Enables operators to inject corrupted sensor readings (Drift, Dropout, Spike, Freeze) or manipulate physics controls (Coolant, Load, Bearing Wear, Jam) to test the end-to-end response and recovery pipeline in real time. Features a dynamic SVG machine graphic that visually models system health (vibration, heat, smoke, sparks).
+3. **Legacy Trigger Console (`#trigger-console`):**  
+   Retained component from the original prototype to manually trigger classification events without passing through the physics simulation.
+4. **Reasoning Trail (`#reasoning-trail`):**  
    Visual step-by-step breakdown illustrating the agentic decision workflow: Observe → Detect → Reason → Propose → Approve → Record.
-4. **Pending Actions (`#pending-actions`):**  
+5. **Pending Actions (`#pending-actions`):**  
    Human-in-the-loop governance interface. Displays queued autonomous proposals requiring manager sign-off, featuring **APPROVE** and **DENY** actions that immediately update the database and machine states.
-5. **Worker Records (`#worker-records`):**  
+6. **Worker Records (`#worker-records`):**  
    Roster of floor personnel tracking safety incident records, compliance rates, and probation statuses.
-6. **Audit Reports (`#audit-reports`):**  
+7. **Audit Reports (`#audit-reports`):**  
    Catalog of quarterly and monthly safety compliance reports with downloadable document actions.
-7. **Risk Trends (`#risk-trends`):**  
+8. **Risk Trends (`#risk-trends`):**  
    Analytics dashboard displaying rolling 30-day percentage trends in safety violations, mechanical faults, and risk distributions.
-8. **Ask JARVIS (`#ask-jarvis`):**  
+9. **Ask JARVIS (`#ask-jarvis`):**  
    Chat interface for natural-language inquiries, featuring an active guardrail advisory block enforcing authorization policies.
-9. **Upload & Inspect (`#upload-inspect`):**  
+10. **Upload & Inspect (`#upload-inspect`):**  
    Visual media upload portal allowing users to submit images and video recordings for inspection by the YOLO vision pipelines.
-10. **Shift Handover (`#shift-handover`):**  
-    Autonomous shift summarization view providing oncoming supervisors with an executive briefing of incidents, equipment downtime, and safety recommendations.
-11. **Audit Verification (`#audit-verification`):**  
+11. **Shift Handover (`#shift-handover`):**  
+   Autonomous shift summarization view providing oncoming supervisors with an executive briefing of incidents, equipment downtime, and safety recommendations.
+12. **Audit Verification (`#audit-verification`):**  
     Cryptographic verification inspector displaying SHA-256 hash chains (`record_hash` + `prev_hash`) to verify audit trail immutability.
-12. **Alert Setup (`#alert-setup`):**  
+13. **Alert Setup (`#alert-setup`):**  
     Notification matrix for toggling desktop push alerts, emergency SMS dispatch, and automated email digests.
 
 ### Header API Status Indicator
@@ -312,6 +314,15 @@ python -m http.server --directory frontend 3000
 
 Open your browser and navigate to:  
 **`http://127.0.0.1:3000`**
+
+### 5. Running the End-to-End Simulation
+
+Once the frontend and backend are running:
+1. Navigate to the **Simulation View** in the top navigation bar.
+2. Use the **Causes (Controls)** sliders and hold buttons to inject mechanical issues like Bearing Wear, Jams, or Cooling Failures.
+3. Use the **Sensors (Reported)** dropdowns to test cyber-physical faults (Signal Dropout, Sensor Drift, Freeze, Spike). 
+4. The **Diagnosis Feed** terminal will output JARVIS's reasoning, dispatch status (e.g. `auto_dispatched` for technical faults or `pending` for manual mechanical approval), and executed fixes.
+5. Watch the SVG graphic dynamically model the physics of the system (heat, vibration, sparks, smoke).
 
 *(Alternatively, you can open `frontend/index.html` directly in your browser).*
 
