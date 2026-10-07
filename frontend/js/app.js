@@ -80,6 +80,9 @@ function handleRoute() {
     if (hash === "#pending-actions" && typeof window.loadPendingActions === "function") {
         window.loadPendingActions();
     }
+    if (hash === "#simulation" && typeof window.initSimulationView === "function") {
+        window.initSimulationView();
+    }
     if (hash === "#risk-trends" && typeof window.loadRiskTrends === "function") {
         window.loadRiskTrends();
     }
@@ -541,11 +544,10 @@ document.addEventListener("DOMContentLoaded", () => {
                         Proposed Action: <strong>${e.proposed_action || 'Immediate attention required'}</strong>
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-2);">
-                        <div class="email-status-feedback" id="email-feedback-${e.event_id}" style="font-size: 0.75rem;"></div>
+                        <div class="email-status-feedback" id="email-feedback-${e.event_id}" style="font-size: 0.75rem; color: var(--color-text-muted);">
+                            ✉️ Auto-escalated email sent to manager
+                        </div>
                         <div style="display: flex; gap: var(--space-2);">
-                            <button class="btn btn-secondary send-email-btn" data-id="${e.event_id}" style="font-size: 0.75rem; padding: 6px 12px; border: 1px solid var(--color-border); background: var(--color-surface); cursor: pointer;">
-                                📧 Send Email Alert
-                            </button>
                             <button class="btn btn-primary approve-btn" data-id="${e.event_id}">Approve</button>
                             <button class="btn btn-secondary deny-btn" data-id="${e.event_id}">Deny</button>
                         </div>
@@ -560,57 +562,6 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             document.querySelectorAll(".deny-btn").forEach(btn => {
                 btn.addEventListener("click", (e) => processApproval(e.target.dataset.id, "DENY"));
-            });
-
-            // Wire Manual Email Alert Button (Double-click protected, real SMTP dispatch)
-            document.querySelectorAll(".send-email-btn").forEach(btn => {
-                btn.addEventListener("click", async (ev) => {
-                    const eventId = ev.currentTarget.dataset.id;
-                    const button = ev.currentTarget;
-                    const feedbackEl = document.getElementById(`email-feedback-${eventId}`);
-                    
-                    // Prevent duplicate clicks & show loading
-                    button.disabled = true;
-                    button.innerHTML = "⏳ Sending...";
-                    if (feedbackEl) {
-                        feedbackEl.textContent = "Connecting to Gmail SMTP...";
-                        feedbackEl.style.color = "var(--color-text-muted)";
-                    }
-                    
-                    try {
-                        const resp = await window.api.post(`/alerts/${eventId}/email`, {
-                            user: "Admin",
-                            role: "Manager"
-                        });
-                        
-                        if (resp && resp.success) {
-                            button.innerHTML = "✓ Email Sent";
-                            button.style.borderColor = "var(--status-success)";
-                            button.style.color = "var(--status-success)";
-                            if (feedbackEl) {
-                                feedbackEl.textContent = `✓ Alert delivered to manager (${resp.recipient})`;
-                                feedbackEl.style.color = "var(--status-success)";
-                            }
-                            if (typeof window.loadRiskTrends === "function") {
-                                window.loadRiskTrends();
-                            }
-                        } else {
-                            button.disabled = false;
-                            button.innerHTML = "📧 Send Email Alert";
-                            if (feedbackEl) {
-                                feedbackEl.textContent = `⚠️ ${resp?.detail || 'Unable to deliver email alert.'}`;
-                                feedbackEl.style.color = "var(--status-critical)";
-                            }
-                        }
-                    } catch (err) {
-                        button.disabled = false;
-                        button.innerHTML = "📧 Send Email Alert";
-                        if (feedbackEl) {
-                            feedbackEl.textContent = "⚠️ Email failed: Server or SMTP error.";
-                            feedbackEl.style.color = "var(--status-critical)";
-                        }
-                    }
-                });
             });
         } catch (err) {
             listEl.innerHTML = '<p style="color: var(--status-critical);">Unable to load pending actions.</p>';
@@ -1284,3 +1235,197 @@ document.addEventListener("DOMContentLoaded", () => {
         window.loadWorkerRecords();
     }
 });
+
+window.JARVIS = window.JARVIS || {};
+window.JARVIS.Simulation = (function() {
+    let pollInterval = null;
+    let lastEventId = 0;
+
+    const SENSORS = ["t_motor", "spd_m", "vib", "c_flow", "cur", "vol", "cur_leak"];
+    
+    function init() {
+        if (pollInterval) clearInterval(pollInterval);
+        
+        setupControls();
+        pollInterval = setInterval(poll, 1000);
+        poll();
+    }
+
+    function setupControls() {
+        const ctrls = ["load_demand", "coolant_flow", "ambient_temp", "supply_voltage", "shaft_offset", "lubricant_level", "belt_tension", "insulation_health"];
+        ctrls.forEach(c => {
+            const el = document.getElementById("ctrl_" + c);
+            const valEl = document.getElementById("val_" + c);
+            if (el) {
+                el.oninput = () => {
+                    valEl.textContent = el.value;
+                    api.post("/simulation/controls", { control: c, value: parseFloat(el.value) });
+                };
+            }
+        });
+
+        // Hold buttons
+        const holdBtns = ["jam_injector", "bearing_wear_btn"];
+        holdBtns.forEach(c => {
+            const btn = document.getElementById("ctrl_" + c);
+            if (btn) {
+                btn.onmousedown = () => api.post("/simulation/controls", { control: c, value: true });
+                btn.onmouseup = () => api.post("/simulation/controls", { control: c, value: false });
+                btn.onmouseleave = () => api.post("/simulation/controls", { control: c, value: false });
+            }
+        });
+    }
+
+    async function poll() {
+        if (window.location.hash !== "#simulation") return;
+        try {
+            const state = await api.get("/simulation/state");
+            if (state) {
+                updateSensors(state);
+                updateGraphic(state);
+            }
+            
+            const eventsRes = await api.get("/events?limit=10");
+            if (eventsRes && eventsRes.events) {
+                updateTerminal(eventsRes.events);
+            }
+        } catch (e) {
+            console.error("Simulation poll error:", e);
+        }
+    }
+
+    function updateSensors(state) {
+        const container = document.getElementById("sim-sensors");
+        if (!container) return;
+        
+        let html = "";
+        SENSORS.forEach(s => {
+            const val = state[s] !== undefined ? state[s].toFixed(2) : "N/A";
+            html += `
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--color-border); padding-bottom:4px;">
+                <span style="font-family:monospace; color:var(--color-text-secondary);">${s}</span>
+                <span style="font-weight:bold; font-family:monospace;">${val}</span>
+                <select onchange="window.JARVIS.Simulation.corrupt('${s}', this.value)" style="padding:2px; font-size:0.7rem; background:var(--color-surface); border:1px solid var(--color-border); color:var(--color-text);">
+                    <option value="none">Nominal</option>
+                    <option value="drift">Drift (+)</option>
+                    <option value="dropout">Dropout (0)</option>
+                    <option value="freeze">Freeze</option>
+                    <option value="spike">Spike</option>
+                </select>
+            </div>
+            `;
+        });
+        // We shouldn't re-render entire innerHTML every second if it destroys focus on select boxes.
+        // Let's only update the values if the DOM exists, to prevent interrupting the <select>.
+        if (container.children.length === 0) {
+            container.innerHTML = html;
+        } else {
+            // Just update values
+            SENSORS.forEach((s, idx) => {
+                const val = state[s] !== undefined ? state[s].toFixed(2) : "N/A";
+                const row = container.children[idx];
+                if (row) {
+                    row.children[1].textContent = val;
+                }
+            });
+        }
+    }
+
+    function updateGraphic(state) {
+        const graphic = document.getElementById("machine-graphic");
+        const sparks = document.getElementById("mg_sparks");
+        const smoke = document.getElementById("mg_smoke");
+        if (!graphic) return;
+        
+        graphic.className = "";
+        sparks.style.display = "none";
+        smoke.style.display = "none";
+
+        if (state.vib > 4.0) graphic.classList.add("shake-intense");
+        else if (state.vib > 2.0) graphic.classList.add("shake-mild");
+        
+        if (state.t_motor > 100) graphic.classList.add("glow-critical");
+        else if (state.t_motor > 80) graphic.classList.add("glow-hot");
+        
+        if (state.spd_m < 100 && state.cur > 150) {
+            smoke.style.display = "block";
+        }
+        
+        if (state.cur_leak > 30.0) {
+            sparks.style.display = "block";
+            graphic.classList.add("glow-critical");
+        }
+    }
+
+    function updateTerminal(events) {
+        const term = document.getElementById("sim-terminal");
+        if (!events || events.length === 0) return;
+        
+        const reversed = [...events].reverse();
+        
+        let newEventsFound = false;
+        reversed.forEach(e => {
+            if (e.event_id > lastEventId && e.event_type === "simulation") {
+                newEventsFound = true;
+                const time = e.timestamp.split(" ")[1] || e.timestamp;
+                let colorClass = "text-success";
+                if (e.severity === "critical" || e.severity === "high") colorClass = "text-critical";
+                else if (e.severity === "warning") colorClass = "text-warning";
+                
+                let detText = "Event";
+                try {
+                    const det = typeof e.detections_json === "string" ? JSON.parse(e.detections_json) : e.detections_json;
+                    if (det && det[0] && det[0].label) detText = det[0].label;
+                } catch(err) {}
+                
+                const entry = document.createElement("div");
+                entry.style.marginTop = "8px";
+                entry.innerHTML = `[${time}] <span class="${colorClass}">JARVIS: Detected ${detText} (${e.category})</span>`;
+                term.appendChild(entry);
+                
+                if (e.proposed_action && e.proposed_action !== "None") {
+                    const fix = document.createElement("div");
+                    fix.style.color = "var(--color-text-secondary)";
+                    fix.innerHTML = `&gt; Proposed Fix: ${e.proposed_action}`;
+                    term.appendChild(fix);
+                }
+                lastEventId = e.event_id;
+            }
+        });
+        
+        if (newEventsFound) {
+            term.scrollTop = term.scrollHeight;
+        }
+    }
+
+    async function applyFix(action) {
+        try {
+            await api.post("/simulation/fix", { action });
+            const term = document.getElementById("sim-terminal");
+            const entry = document.createElement("div");
+            entry.style.marginTop = "8px";
+            entry.style.color = "var(--status-success)";
+            entry.innerHTML = `[User] Triggered Fix: ${action}`;
+            term.appendChild(entry);
+            term.scrollTop = term.scrollHeight;
+        } catch(e) {
+            console.error("Fix failed", e);
+        }
+    }
+
+    async function corrupt(sensor, corrType) {
+        try {
+            if (corrType === "none") {
+                await api.post("/simulation/corrupt", { sensor, corr_type: "none" });
+            } else {
+                await api.post("/simulation/corrupt", { sensor, corr_type: corrType });
+            }
+        } catch(e) {
+            console.error("Corrupt failed", e);
+        }
+    }
+
+    return { init, applyFix, corrupt };
+})();
+
+window.initSimulationView = window.JARVIS.Simulation.init;
