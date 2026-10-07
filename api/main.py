@@ -332,11 +332,14 @@ async def inspect_upload(
     try:
         result = run_inspection(inspection_type, saved, filename)
         if result.get("event_id"):
-            dispatch_manual_email_alert(
-                event_id=result["event_id"],
-                user="JARVIS Auto-Dispatch",
-                role="System"
-            )
+            try:
+                dispatch_manual_email_alert(
+                    event_id=result["event_id"],
+                    user="JARVIS Auto-Dispatch",
+                    role="System"
+                )
+            except Exception as mail_err:
+                print(f"[api/main] Warning: Auto-dispatch email failed: {mail_err}")
         return result
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Inspection failed: {exc}")
@@ -352,11 +355,14 @@ def inspect_demo(req: InspectDemoRequest):
     try:
         result = run_demo_inspection(req.inspection_type)
         if result.get("event_id"):
-            dispatch_manual_email_alert(
-                event_id=result["event_id"],
-                user="JARVIS Auto-Dispatch",
-                role="System"
-            )
+            try:
+                dispatch_manual_email_alert(
+                    event_id=result["event_id"],
+                    user="JARVIS Auto-Dispatch",
+                    role="System"
+                )
+            except Exception as mail_err:
+                print(f"[api/main] Warning: Auto-dispatch email failed: {mail_err}")
         return result
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Sample inspection failed: {exc}")
