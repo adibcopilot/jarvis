@@ -173,6 +173,15 @@ def insert_event(
 
     conn.commit()
     conn.close()
+
+    if approval_status == "pending":
+        try:
+            import threading
+            from alerts.dispatcher import dispatch_automatic_escalation
+            threading.Thread(target=dispatch_automatic_escalation, args=(event_id,), daemon=True).start()
+        except Exception as e:
+            print(f"[db] Background email dispatch error: {e}")
+
     return event_id
 
 
