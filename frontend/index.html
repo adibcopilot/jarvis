@@ -39,7 +39,8 @@
         </div>
         <nav class="header-nav" id="main-nav">
             <a href="#floor-view" class="nav-link active">Floor View</a>
-            <a href="#trigger-console" class="nav-link">Trigger Console</a>
+            <a href="#simulation" class="nav-link">Simulation</a>
+            <a href="#trigger-console" class="nav-link">Legacy Trigger Console</a>
             <a href="#reasoning-trail" class="nav-link">Reasoning Trail</a>
             <a href="#pending-actions" class="nav-link">Pending Actions</a>
             <a href="#worker-records" class="nav-link">Worker Records</a>
@@ -128,6 +129,130 @@
         </section>
         </div> <!-- End Floor View -->
         
+        <!-- Simulation View -->
+        <div id="view-simulation" class="app-view">
+            <div class="page-header" style="background: var(--status-warning); color: #000; padding: var(--space-4); margin-bottom: var(--space-6); border-radius: var(--radius-md);">
+                <h1 class="page-title" style="color: #000; margin-bottom: 0;">Simulation View</h1>
+                <p style="font-weight: bold;">Simulated machine. No hardware is connected.</p>
+            </div>
+            
+            <!-- Main Grid -->
+            <div style="display: grid; grid-template-columns: 250px 1fr 300px; gap: var(--space-6);">
+                
+                <!-- Left: Controls -->
+                <section class="card">
+                    <h2 class="card-title">Causes (Controls)</h2>
+                    <div id="sim-controls" style="display:flex; flex-direction:column; gap: var(--space-4); font-size: 0.875rem;">
+                        <div>
+                            <label>Load Demand (<span id="val_load_demand">50</span>)</label>
+                            <input type="range" id="ctrl_load_demand" min="0" max="200" value="50" style="width: 100%">
+                        </div>
+                        <div>
+                            <label>Coolant Flow (<span id="val_coolant_flow">100</span>%)</label>
+                            <input type="range" id="ctrl_coolant_flow" min="0" max="150" value="100" style="width: 100%">
+                        </div>
+                        <div>
+                            <label>Ambient Temp (<span id="val_ambient_temp">40</span>°C)</label>
+                            <input type="range" id="ctrl_ambient_temp" min="0" max="80" value="40" style="width: 100%">
+                        </div>
+                        <div>
+                            <label>Supply Voltage (<span id="val_supply_voltage">400</span>V)</label>
+                            <input type="range" id="ctrl_supply_voltage" min="0" max="500" value="400" style="width: 100%">
+                        </div>
+                        <div>
+                            <label>Shaft Offset (<span id="val_shaft_offset">0</span>)</label>
+                            <input type="range" id="ctrl_shaft_offset" min="0" max="100" value="0" style="width: 100%">
+                        </div>
+                        <div>
+                            <label>Lubricant Level (<span id="val_lubricant_level">100</span>%)</label>
+                            <input type="range" id="ctrl_lubricant_level" min="0" max="100" value="100" style="width: 100%">
+                        </div>
+                        <div>
+                            <label>Belt Tension (<span id="val_belt_tension">100</span>%)</label>
+                            <input type="range" id="ctrl_belt_tension" min="0" max="100" value="100" style="width: 100%">
+                        </div>
+                        <div>
+                            <label>Insulation Health (<span id="val_insulation_health">100</span>%)</label>
+                            <input type="range" id="ctrl_insulation_health" min="0" max="100" value="100" style="width: 100%">
+                        </div>
+                        <div style="margin-top: var(--space-4); display: flex; gap: var(--space-2);">
+                            <button id="ctrl_jam_injector" class="btn btn-primary" style="flex: 1; background: var(--status-critical);">Hold: Jam</button>
+                            <button id="ctrl_bearing_wear_btn" class="btn btn-primary" style="flex: 1; background: var(--status-warning);">Hold: Wear</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Center: Machine Graphic & Terminal -->
+                <div style="display: flex; flex-direction: column; gap: var(--space-6);">
+                    <section class="card" style="flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                        <!-- SVG Machine Graphic -->
+                        <div id="machine-graphic" style="transition: all 0.5s ease; position: relative;">
+                            <svg width="200" height="200" viewBox="0 0 100 100">
+                                <!-- Base / Body -->
+                                <rect id="mg_body" x="20" y="30" width="60" height="40" rx="5" fill="#333" stroke="#555" stroke-width="2"/>
+                                <!-- Shaft -->
+                                <rect id="mg_shaft" x="80" y="45" width="20" height="10" fill="#777"/>
+                                <!-- Belt wheel -->
+                                <circle id="mg_wheel" cx="90" cy="50" r="8" fill="#555"/>
+                                <!-- Belt -->
+                                <line id="mg_belt" x1="90" y1="42" x2="110" y2="42" stroke="#444" stroke-width="2"/>
+                                <line id="mg_belt_btm" x1="90" y1="58" x2="110" y2="58" stroke="#444" stroke-width="2"/>
+                            </svg>
+                            <div id="mg_sparks" style="position: absolute; top: -10px; right: -10px; font-size: 24px; display: none;">⚡</div>
+                            <div id="mg_smoke" style="position: absolute; top: -20px; left: 40px; font-size: 24px; display: none;">💨</div>
+                        </div>
+                        <style>
+                            @keyframes shake {
+                                0% { transform: translate(1px, 1px) rotate(0deg); }
+                                10% { transform: translate(-1px, -2px) rotate(-1deg); }
+                                20% { transform: translate(-3px, 0px) rotate(1deg); }
+                                30% { transform: translate(3px, 2px) rotate(0deg); }
+                                40% { transform: translate(1px, -1px) rotate(1deg); }
+                                50% { transform: translate(-1px, 2px) rotate(-1deg); }
+                                60% { transform: translate(-3px, 1px) rotate(0deg); }
+                                70% { transform: translate(3px, 1px) rotate(-1deg); }
+                                80% { transform: translate(-1px, -1px) rotate(1deg); }
+                                90% { transform: translate(1px, 2px) rotate(0deg); }
+                                100% { transform: translate(1px, -2px) rotate(-1deg); }
+                            }
+                            .shake-mild { animation: shake 0.5s infinite; }
+                            .shake-intense { animation: shake 0.2s infinite; }
+                            .glow-hot { filter: drop-shadow(0 0 10px red); }
+                            .glow-critical { filter: drop-shadow(0 0 20px red) drop-shadow(0 0 40px orange); }
+                        </style>
+                    </section>
+
+                    <section class="card" style="flex: 1; background: #000; color: #0f0; font-family: monospace; overflow-y: auto; max-height: 250px;">
+                        <h2 class="card-title" style="color: #fff; margin-bottom: var(--space-2);">Diagnosis Feed</h2>
+                        <div id="sim-terminal" style="font-size: 0.85rem; line-height: 1.4; white-space: pre-wrap; display: flex; flex-direction: column; gap: var(--space-2);">
+                            <div>System initialized. Monitoring sensors...</div>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Right: Sensors & Fixes -->
+                <section class="card">
+                    <h2 class="card-title">Sensors (Reported)</h2>
+                    <div id="sim-sensors" style="display:flex; flex-direction:column; gap: var(--space-4); font-size: 0.875rem;">
+                        <!-- Generated via JS -->
+                    </div>
+
+                    <h2 class="card-title" style="margin-top: var(--space-6);">Direct Fixes</h2>
+                    <div style="display:flex; flex-direction:column; gap: var(--space-2); font-size: 0.75rem;">
+                        <button class="btn btn-secondary" onclick="JARVIS.Simulation.applyFix('Recalibrate Sensors')">Recalibrate Sensors</button>
+                        <button class="btn btn-secondary" onclick="JARVIS.Simulation.applyFix('Soft Reset')">Soft Reset</button>
+                        <button class="btn btn-secondary" onclick="JARVIS.Simulation.applyFix('Cooling Override')">Cooling Override</button>
+                        <button class="btn btn-secondary" onclick="JARVIS.Simulation.applyFix('Emergency Stop')">Emergency Stop</button>
+                        <button class="btn btn-secondary" onclick="JARVIS.Simulation.applyFix('Part Swap')">Part Swap</button>
+                        <button class="btn btn-secondary" onclick="JARVIS.Simulation.applyFix('Re-lubricate')">Re-lubricate</button>
+                        <button class="btn btn-secondary" onclick="JARVIS.Simulation.applyFix('Re-tension')">Re-tension</button>
+                        <button class="btn btn-secondary" onclick="JARVIS.Simulation.applyFix('Re-insulate')">Re-insulate</button>
+                        <button class="btn btn-secondary" onclick="JARVIS.Simulation.applyFix('Backup Power')">Backup Power</button>
+                    </div>
+                </section>
+            </div>
+        </div>
+
         <!-- Trigger Console View -->
         <div id="view-trigger-console" class="app-view">
             <div class="page-header">
