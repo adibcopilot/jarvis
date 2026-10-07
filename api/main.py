@@ -137,6 +137,13 @@ def process_approval(req: ApprovalRequest):
         
     status = "APPROVED" if req.action == "APPROVE" else "DENIED"
     update_approval(req.event_id, status, req.user)
+    
+    if status == "APPROVED":
+        # Execute the fix inside the simulation engine
+        event = get_event_by_id(req.event_id)
+        if event and event.get("proposed_action"):
+            physics_engine.apply_fix(event["proposed_action"])
+            
     return {"success": True, "event_id": req.event_id, "status": status}
 
 class TriggerRequest(BaseModel):
@@ -240,7 +247,6 @@ def set_simulated_temperature(req: TemperatureSetRequest):
         raise HTTPException(status_code=400, detail=str(exc))
     return result
 
-
 class InteractRequest(BaseModel):
     sensor: str
     action: str  # "override", "corrupt", "reset"
@@ -251,14 +257,43 @@ class InteractRequest(BaseModel):
 def get_simulation_state():
     return physics_engine.get_readings()
 
+class ControlRequest(BaseModel):
+    control: str
+    value: Any
+
+@app.post("/api/simulation/controls")
+def simulation_controls(req: ControlRequest):
+    physics_engine.apply_control(req.control, req.value)
+    return {"status": "ok"}
+
+class CorruptRequest(BaseModel):
+    sensor: str
+    corr_type: str
+    value: Optional[float] = None
+
+@app.post("/api/simulation/corrupt")
+def simulation_corrupt(req: CorruptRequest):
+    physics_engine.apply_corruption(req.sensor, req.corr_type, req.value)
+    return {"status": "ok"}
+
+class FixRequest(BaseModel):
+    action: str
+
+@app.post("/api/simulation/fix")
+def simulation_fix(req: FixRequest):
+    # This is a user-initiated direct fix via UI button
+    physics_engine.apply_fix(req.action)
+    return {"status": "ok"}
+
 @app.post("/api/simulation/interact")
 def interact_simulation(req: InteractRequest):
+    # Kept for compatibility if old UI still uses it briefly
     if req.action == "override":
-        physics_engine.apply_user_override(req.sensor, req.value)
+        # Map override to applying a control (not strictly correct for sensors but legacy)
+        physics_engine.apply_control(req.sensor, req.value)
     elif req.action == "corrupt":
         physics_engine.apply_corruption(req.sensor, req.corr_type or "spike", req.value)
     elif req.action == "reset":
-        physics_engine.apply_user_override(req.sensor, None)
         physics_engine.apply_corruption(req.sensor, "none")
     return {"status": "ok", "state": physics_engine.get_readings()}
 
