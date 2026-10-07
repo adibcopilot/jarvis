@@ -199,6 +199,8 @@ def _respond(decision: Dict[str, Any], current_c: float, previous_c: float,
             to_address = f"(unconfigured) {r['env_var']}"
             error = f"No address configured for role '{r['label']}' - set {r['env_var']} in .env"
         else:
+            import time
+            time.sleep(1.5)  # Prevent SMTP rate limit / connection drops
             ok, to_address, error = send_email_via_smtp(
                 event, recipient=r["email"], recipient_label=r["label"]
             )
